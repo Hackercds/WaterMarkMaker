@@ -204,10 +204,13 @@ input[type="file"]{display:none}
 .thumb-strip{
   display:flex;gap:5px;align-items:center;padding:6px 12px;
   overflow-x:auto;overflow-y:hidden;min-height:54px;
+  position:relative;
 }
 .thumb-strip::-webkit-scrollbar{height:2px}
 .thumb-strip::-webkit-scrollbar-track{background:transparent}
 .thumb-strip::-webkit-scrollbar-thumb{background:var(--border);border-radius:1px}
+/* Mobile nav arrows inside thumbnail strip */
+.mobile-nav-left,.mobile-nav-right{display:none}
 .add-thumb{
   width:40px;height:40px;min-width:40px;border-radius:var(--radius-sm);
   border:1.5px dashed var(--border);background:transparent;color:var(--text-muted);
@@ -496,18 +499,20 @@ input[type="file"]{display:none}
   /* Float quick bar */
   .float-quick{display:flex}
 
-  /* Bottom bar: large touch targets */
-  .bar-tools{padding:5px 8px;gap:5px;flex-wrap:nowrap}
-  .search-wrap{width:32px;flex:none;overflow:hidden;transition:width .2s}
-  .search-wrap:focus-within{width:140px}
-  .search-wrap input{font-size:11px;height:28px;padding:4px 2px 4px 22px}
-  .nav-pos{font-size:11px;padding:4px 8px}
-  .nbtn{width:34px;height:34px;font-size:16px}
-  .nav-scroll-btn{display:none}
-  .view-toggle{width:34px;height:34px}
-  .thumb-strip{min-height:60px;padding:5px 8px;gap:5px}
-  .thumb,.add-thumb{width:52px;height:52px;min-width:52px}
-  .add-thumb{font-size:20px}
+  /* Bottom bar: tools hidden, BIG thumbs-only strip */
+  .bar-tools{display:none}
+  .thumb-strip{min-height:70px;padding:5px 36px;gap:6px}
+  .thumb,.add-thumb{width:60px;height:60px;min-width:60px}
+  .add-thumb{font-size:22px}
+  /* Mobile nav arrows in thumbnail strip */
+  .mobile-nav-left,.mobile-nav-right{
+    display:flex;position:absolute;top:50%;transform:translateY(-50%);
+    width:30px;height:48px;align-items:center;justify-content:center;
+    background:var(--bg-surface);color:var(--text-dim);
+    font-size:22px;cursor:pointer;z-index:3;
+    border:1px solid var(--border);border-radius:var(--radius-sm);
+  }
+  .mobile-nav-left{left:2px}.mobile-nav-right{right:2px}
   .canvas-area{padding:6px}
   .float-zoom{bottom:6px;right:6px;padding:2px}
   .zbtn{width:30px;height:30px;font-size:14px}
@@ -521,11 +526,9 @@ input[type="file"]{display:none}
 /* ===== VERY SMALL (<380px) ================= */
 /* =========================================== */
 @media(max-width:379px){
-  .bar-tools{gap:3px;padding:4px 5px}
-  .nav-btns{gap:2px}
-  .nbtn{width:30px;height:30px;font-size:14px}
-  .thumb-strip{min-height:50px;padding:3px 5px;gap:4px}
-  .thumb,.add-thumb{width:44px;height:44px;min-width:44px}
+  .thumb-strip{min-height:60px;padding:4px 32px;gap:5px}
+  .thumb,.add-thumb{width:52px;height:52px;min-width:52px}
+  .mobile-nav-left,.mobile-nav-right{width:26px;height:40px;font-size:18px}
   .float-zoom{bottom:4px;right:4px}
   .zbtn{width:26px;height:26px;font-size:12px}
   .zlabel{font-size:9px;min-width:34px}
@@ -594,7 +597,7 @@ input[type="file"]{display:none}
       </div>
 
       <div class="bottom-bar" id="bottomBar" style="display:none">
-        <div class="bar-tools">
+        <div class="bar-tools" id="barTools">
           <div class="search-wrap" id="searchWrap">
             <span class="search-icon"></span>
             <input type="text" id="imgSearch" placeholder="搜索...">
@@ -602,9 +605,9 @@ input[type="file"]{display:none}
           </div>
           <div class="nav-btns">
             <button class="nbtn nav-scroll-btn" onclick="thumbStrip.scrollBy({left:-200,behavior:'smooth'})" title="缩略图左移">&laquo;</button>
-            <button class="nbtn" onclick="navPrev()" title="上一张">&#x2039;</button>
+            <button class="nbtn nav-prev-btn" onclick="navPrev()" title="上一张">&#x2039;</button>
             <span class="nav-pos" id="navPos" onclick="focusJump()">1/1</span>
-            <button class="nbtn" onclick="navNext()" title="下一张">&#x203A;</button>
+            <button class="nbtn nav-next-btn" onclick="navNext()" title="下一张">&#x203A;</button>
             <button class="nbtn nav-scroll-btn" onclick="thumbStrip.scrollBy({left:200,behavior:'smooth'})" title="缩略图右移">&raquo;</button>
           </div>
           <button class="view-toggle" id="viewToggle" onclick="toggleList()">
@@ -614,6 +617,9 @@ input[type="file"]{display:none}
         </div>
         <div class="thumb-strip" id="thumbStrip">
           <button class="add-thumb" onclick="document.getElementById('fileInput').click()">+</button>
+          <!-- Mobile nav injected here on small screens -->
+          <span class="mobile-nav-left" onclick="navPrev()">&#x2039;</span>
+          <span class="mobile-nav-right" onclick="navNext()">&#x203A;</span>
         </div>
         <div class="list-overlay" id="listOverlay">
           <div class="list-scroll" id="listScroll"></div>
