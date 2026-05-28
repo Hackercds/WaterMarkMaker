@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Watermark Tool — 自定义水印工具</title>
+<title>Watermark Tool</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 /* ============================================================
@@ -16,531 +16,480 @@
   --bg-raised: #26252e;
   --bg-input: #1f1e27;
   --border: #33313c;
-  --border-focus: #524e40;
   --accent: #d4a046;
   --accent-dim: #b08835;
-  --accent-glow: rgba(212, 160, 70, 0.12);
-  --accent-strong: rgba(212, 160, 70, 0.22);
+  --accent-glow: rgba(212,160,70,0.12);
+  --accent-strong: rgba(212,160,70,0.22);
   --text: #e4e2df;
   --text-dim: #908d99;
   --text-muted: #5e5b66;
   --danger: #d95c4a;
-  --danger-dim: #b84535;
   --radius-sm: 3px;
   --radius: 5px;
-  --radius-lg: 8px;
-  --font: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", sans-serif;
-  --font-mono: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  --font: "PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --font-mono: "SF Mono","Cascadia Code","Consolas",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:var(--font);background:var(--bg-root);color:var(--text);
+  min-height:100vh;min-height:100dvh;overflow:hidden;-webkit-font-smoothing:antialiased;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* Header */
+.header{
+  background:var(--bg-surface);padding:0 20px;height:46px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);z-index:20;position:relative;
+}
+.header-logo{display:flex;align-items:center;gap:10px}
+.header-logo .logo-mark{
+  width:18px;height:18px;border:2px solid var(--accent);border-radius:2px;position:relative;
+}
+.header-logo .logo-mark::after{
+  content:'';position:absolute;top:3px;left:3px;width:8px;height:8px;
+  background:var(--accent);opacity:.5;
+}
+.header-logo h1{font-size:14px;font-weight:600;color:var(--text-dim);letter-spacing:.04em}
+.header-logo h1 span{color:var(--text)}
+.header .actions{display:flex;gap:6px;align-items:center}
+.header .actions .btn{padding:5px 12px;font-size:12px;height:30px}
+.header .mobile-toggle{
+  display:none;width:32px;height:32px;background:transparent;
+  border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);
+  font-size:16px;cursor:pointer;align-items:center;justify-content:center;transition:all .15s;
+}
+.header .mobile-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.settings-icon{display:flex;flex-direction:column;gap:3px;width:16px}
+.settings-icon span{display:block;height:2px;background:currentColor;border-radius:1px}
+.settings-icon span:nth-child(2){width:70%}
+.settings-icon span:nth-child(3){width:45%}
 
-body {
-  font-family: var(--font);
-  background: var(--bg-root);
-  color: var(--text);
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
-}
+/* Container */
+.container{display:flex;height:calc(100vh - 46px);height:calc(100dvh - 46px)}
 
-/* ===== Header ===== */
-.header {
-  background: var(--bg-surface);
-  padding: 0 20px;
-  height: 46px;
-  display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  z-index: 20;
-  position: relative;
+/* Preview */
+.preview{
+  flex:1;display:flex;flex-direction:column;background:var(--bg-root);
+  position:relative;overflow:hidden;min-width:0;
 }
-.header-logo {
-  display: flex; align-items: center; gap: 10px;
+.preview::before{
+  content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,var(--border) 1px,transparent 1px);
+  background-size:24px 24px;opacity:.3;pointer-events:none;z-index:0;
 }
-.header-logo .logo-mark {
-  width: 18px; height: 18px;
-  border: 2px solid var(--accent);
-  border-radius: 2px;
-  position: relative;
+.preview-canvas-area{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:20px;overflow:auto;position:relative;z-index:1;
 }
-.header-logo .logo-mark::after {
-  content: ''; position: absolute;
-  top: 3px; left: 3px; width: 8px; height: 8px;
-  background: var(--accent);
-  opacity: 0.5;
-}
-.header-logo h1 {
-  font-size: 14px; font-weight: 600;
-  color: var(--text-dim);
-  letter-spacing: 0.04em;
-}
-.header-logo h1 span { color: var(--text); }
-.header .actions { display: flex; gap: 6px; align-items: center; }
-.header .actions .btn { padding: 5px 12px; font-size: 12px; height: 30px; }
-.header .mobile-toggle {
-  display: none;
-  width: 32px; height: 32px;
-  background: transparent; border: 1px solid var(--border);
-  border-radius: var(--radius-sm); color: var(--text-dim);
-  font-size: 16px; cursor: pointer;
-  align-items: center; justify-content: center;
-  transition: all 0.15s;
-}
-.header .mobile-toggle:hover { border-color: var(--accent); color: var(--accent); }
-
-/* Settings icon — three horizontal bars */
-.settings-icon { display: flex; flex-direction: column; gap: 3px; width: 16px; }
-.settings-icon span { display: block; height: 2px; background: currentColor; border-radius: 1px; }
-.settings-icon span:nth-child(2) { width: 70%; }
-.settings-icon span:nth-child(3) { width: 45%; }
-
-/* ===== Container ===== */
-.container {
-  display: flex;
-  height: calc(100vh - 46px);
-  height: calc(100dvh - 46px);
+/* Canvas wrapper — zoom applied here */
+.canvas-wrapper{
+  display:inline-block;position:relative;
+  transform-origin:center center;
+  transition:transform .15s ease-out;
 }
 
-/* ===== Preview Area ===== */
-.preview {
-  flex: 1;
-  display: flex; flex-direction: column;
-  background: var(--bg-root);
-  position: relative;
-  overflow: hidden;
-  min-width: 0;
-}
-/* Subtle dot grid on preview background — like a light table */
-.preview::before {
-  content: '';
-  position: absolute; inset: 0;
-  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
-  background-size: 24px 24px;
-  opacity: 0.3;
-  pointer-events: none;
-  z-index: 0;
-}
-.preview-canvas-area {
-  flex: 1;
-  display: flex; align-items: center; justify-content: center;
-  padding: 20px;
-  overflow: auto;
-  position: relative; z-index: 1;
-}
-.preview .drop-zone {
-  border: 2px dashed var(--border);
-  border-radius: var(--radius-lg);
-  padding: 56px 40px;
-  text-align: center;
-  color: var(--text-muted);
-  transition: all 0.25s;
-  cursor: pointer;
-  max-width: 380px;
-  background: var(--bg-surface);
+.preview .drop-zone{
+  border:2px dashed var(--border);border-radius:var(--radius);
+  padding:56px 40px;text-align:center;color:var(--text-muted);
+  transition:all .25s;cursor:pointer;max-width:380px;background:var(--bg-surface);
 }
 .preview .drop-zone:hover,
-.preview .drop-zone.drag-over {
-  border-color: var(--accent); color: var(--accent);
-  background: var(--bg-raised);
+.preview .drop-zone.drag-over{
+  border-color:var(--accent);color:var(--accent);background:var(--bg-raised);
 }
-/* Upload icon — CSS only */
-.upload-icon {
-  width: 44px; height: 44px;
-  border: 2px solid currentColor;
-  border-radius: var(--radius);
-  margin: 0 auto 16px;
-  position: relative;
-  opacity: 0.5;
-  transition: opacity 0.25s;
+.upload-icon{
+  width:44px;height:44px;border:2px solid currentColor;border-radius:var(--radius);
+  margin:0 auto 16px;position:relative;opacity:.5;transition:opacity .25s;
 }
-.drop-zone:hover .upload-icon,
-.drop-zone.drag-over .upload-icon { opacity: 1; }
-.upload-icon::before {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 0; height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-bottom: 12px solid currentColor;
+.drop-zone:hover .upload-icon,.drop-zone.drag-over .upload-icon{opacity:1}
+.upload-icon::before{
+  content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid currentColor;
 }
-.upload-icon::after {
-  content: '';
-  position: absolute;
-  bottom: 8px; left: 50%; transform: translateX(-50%);
-  width: 3px; height: 10px;
-  background: currentColor;
-  border-radius: 1px;
+.upload-icon::after{
+  content:'';position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  width:3px;height:10px;background:currentColor;border-radius:1px;
 }
-.preview .drop-zone p { font-size: 13px; line-height: 1.9; }
-.preview .drop-zone p strong { color: var(--accent); }
-.preview canvas {
-  max-width: 100%; max-height: 100%;
-  object-fit: contain;
-  cursor: crosshair;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 2px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+.preview .drop-zone p{font-size:13px;line-height:1.9}
+.preview .drop-zone p strong{color:var(--accent)}
+.preview canvas{
+  max-width:100%;max-height:100%;object-fit:contain;cursor:crosshair;
+  border-radius:var(--radius-sm);
+  box-shadow:0 2px 20px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.04);
+  display:block;
 }
-.preview .canvas-wrapper { position: relative; display: inline-block; }
-.preview input[type="file"] { display: none; }
+.preview input[type="file"]{display:none}
 
-/* ===== Thumbnail Strip ===== */
-.thumbnail-strip {
-  display: flex; gap: 5px; align-items: center;
-  padding: 8px 12px;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border);
-  overflow-x: auto; overflow-y: hidden;
-  min-height: 62px;
-  flex-shrink: 0;
-  position: relative; z-index: 2;
+/* ===== Zoom controls (floating in preview corner) ===== */
+.zoom-controls{
+  position:absolute;bottom:14px;right:14px;z-index:10;
+  display:flex;align-items:center;gap:2px;
+  background:var(--bg-surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:3px;
+  opacity:.7;transition:opacity .2s;
 }
-.thumbnail-strip::-webkit-scrollbar { height: 2px; }
-.thumbnail-strip::-webkit-scrollbar-track { background: transparent; }
-.thumbnail-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
-.thumbnail-strip .add-btn {
-  width: 44px; height: 44px; min-width: 44px;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--border);
-  background: transparent; color: var(--text-muted);
-  font-size: 20px; cursor: pointer;
-  transition: all 0.15s; line-height: 1;
-  display: flex; align-items: center; justify-content: center;
+.zoom-controls:hover{opacity:1}
+.zoom-btn{
+  width:26px;height:26px;border:none;background:transparent;color:var(--text-dim);
+  font-size:16px;cursor:pointer;border-radius:var(--radius-sm);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);transition:all .12s;line-height:1;
 }
-.thumbnail-strip .add-btn:hover { border-color: var(--accent); color: var(--accent); }
-.thumbnail-strip .count-badge {
-  font-size: 10px; color: var(--text-muted); white-space: nowrap;
-  padding: 0 6px; font-family: var(--font-mono); letter-spacing: 0.04em;
+.zoom-btn:hover{background:var(--bg-raised);color:var(--text)}
+.zoom-btn:active{color:var(--accent)}
+.zoom-label{
+  font-size:10px;color:var(--text-muted);font-family:var(--font-mono);
+  padding:0 6px;min-width:42px;text-align:center;cursor:pointer;
+  letter-spacing:.03em;
 }
-.thumb {
-  position: relative;
-  width: 44px; height: 44px; min-width: 44px;
-  border-radius: var(--radius-sm); overflow: hidden;
-  cursor: pointer; flex-shrink: 0;
-  border: 1.5px solid var(--border);
-  transition: border-color 0.15s, box-shadow 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-.thumb:hover { border-color: var(--text-dim); }
-.thumb.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent-glow);
-}
-.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.thumb .thumb-index {
-  position: absolute; top: 2px; left: 3px;
-  font-size: 9px; font-family: var(--font-mono); color: #fff;
-  background: rgba(0,0,0,0.7); border-radius: 2px;
-  padding: 0 3px; line-height: 14px; letter-spacing: 0.03em;
-}
-.thumb .thumb-remove {
-  position: absolute; top: 2px; right: 2px;
-  width: 15px; height: 15px;
-  border-radius: 50%; background: var(--danger);
-  color: #fff; border: none; cursor: pointer;
-  font-size: 10px; line-height: 15px; text-align: center;
-  opacity: 0; transition: opacity 0.12s;
-}
-.thumb:hover .thumb-remove,
-.thumb:active .thumb-remove { opacity: 1; }
-.thumb .thumb-check {
-  position: absolute; bottom: 2px; right: 2px;
-  width: 16px; height: 16px;
-  accent-color: var(--accent); cursor: pointer;
-  opacity: 0; transition: opacity 0.12s;
-  border-radius: 2px;
-}
-.thumb:hover .thumb-check,
-.thumb:active .thumb-check,
-.thumb.show-check .thumb-check { opacity: 1; }
+.zoom-label:hover{color:var(--accent)}
+.zoom-divider{width:1px;height:16px;background:var(--border);margin:0 2px}
 
-/* ===== Controls Panel ===== */
-.controls {
-  width: 326px; min-width: 326px;
-  background: var(--bg-surface);
-  border-left: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  overflow: hidden;
+/* ===== Thumbnail Strip / Bottom Bar ===== */
+.bottom-bar{
+  display:flex;flex-direction:column;background:var(--bg-surface);
+  border-top:1px solid var(--border);flex-shrink:0;position:relative;z-index:2;
 }
-.controls-scroll {
-  flex: 1; overflow-y: auto; overflow-x: hidden;
-  padding: 12px 14px;
-  display: flex; flex-direction: column; gap: 10px;
+.bottom-bar-tools{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 12px;border-bottom:1px solid var(--border);
 }
-.controls-scroll::-webkit-scrollbar { width: 3px; }
-.controls-scroll::-webkit-scrollbar-track { background: transparent; }
-.controls-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-.controls .section {
-  background: var(--bg-raised);
-  border-radius: var(--radius);
-  padding: 12px;
-  border: 1px solid var(--border);
+.search-wrap{
+  position:relative;flex:1;max-width:220px;
 }
-.controls .section-title {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  display: flex; align-items: center; justify-content: space-between;
+.search-wrap input{
+  width:100%;padding:5px 8px 5px 26px;font-size:11px;font-family:var(--font);
+  background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);outline:none;transition:border-color .15s;
 }
-.section-title .section-actions { display: flex; gap: 3px; }
-.section-title .section-actions button {
-  font-size: 9px; padding: 2px 7px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); background: transparent; color: var(--text-muted);
-  cursor: pointer; white-space: nowrap;
-  transition: all 0.12s;
-  text-transform: uppercase; letter-spacing: 0.04em;
+.search-wrap input:focus{border-color:var(--accent)}
+.search-wrap input::placeholder{color:var(--text-muted)}
+.search-icon{
+  position:absolute;left:7px;top:50%;transform:translateY(-50%);
+  color:var(--text-muted);font-size:12px;pointer-events:none;
 }
-.section-title .section-actions button:hover {
-  border-color: var(--accent); color: var(--accent);
-  background: var(--accent-glow);
+.nav-btns{display:flex;gap:2px}
+.nav-btn{
+  width:24px;height:24px;border:1px solid var(--border);background:transparent;
+  color:var(--text-dim);border-radius:var(--radius-sm);cursor:pointer;
+  font-size:14px;display:flex;align-items:center;justify-content:center;
+  transition:all .12s;font-family:var(--font-mono);line-height:1;
+}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+.nav-btn:disabled{opacity:.3;cursor:not-allowed}
+.nav-pos{
+  font-size:10px;font-family:var(--font-mono);color:var(--text-dim);
+  white-space:nowrap;letter-spacing:.03em;cursor:pointer;padding:2px 4px;
+  border-radius:var(--radius-sm);transition:all .12s;
+}
+.nav-pos:hover{color:var(--accent);background:var(--bg-raised)}
+.nav-jump{
+  width:36px;padding:3px 4px;font-size:10px;font-family:var(--font-mono);
+  background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);text-align:center;outline:none;
+}
+.nav-jump:focus{border-color:var(--accent)}
+.view-toggle{
+  width:26px;height:24px;border:1px solid var(--border);background:transparent;
+  color:var(--text-dim);border-radius:var(--radius-sm);cursor:pointer;
+  font-size:11px;display:flex;align-items:center;justify-content:center;
+  transition:all .12s;
+}
+.view-toggle:hover,.view-toggle.active{border-color:var(--accent);color:var(--accent)}
+.list-dot{display:grid;grid-template-columns:repeat(2,5px);gap:2px}
+.list-dot span{display:block;width:5px;height:5px;background:currentColor;border-radius:1px}
+
+.thumbnail-strip{
+  display:flex;gap:5px;align-items:center;
+  padding:6px 12px;overflow-x:auto;overflow-y:hidden;
+  min-height:54px;flex-shrink:0;
+}
+.thumbnail-strip::-webkit-scrollbar{height:2px}
+.thumbnail-strip::-webkit-scrollbar-track{background:transparent}
+.thumbnail-strip::-webkit-scrollbar-thumb{background:var(--border);border-radius:1px}
+.thumbnail-strip .add-btn{
+  width:40px;height:40px;min-width:40px;border-radius:var(--radius-sm);
+  border:1px dashed var(--border);background:transparent;color:var(--text-muted);
+  font-size:18px;cursor:pointer;transition:all .15s;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+}
+.thumbnail-strip .add-btn:hover{border-color:var(--accent);color:var(--accent)}
+.thumbnail-strip .count-badge{
+  font-size:10px;color:var(--text-muted);white-space:nowrap;
+  padding:0 6px;font-family:var(--font-mono);letter-spacing:.04em;
+}
+.thumb{
+  position:relative;width:40px;height:40px;min-width:40px;
+  border-radius:var(--radius-sm);overflow:hidden;cursor:pointer;flex-shrink:0;
+  border:1.5px solid var(--border);transition:border-color .15s,box-shadow .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.thumb:hover{border-color:var(--text-dim)}
+.thumb.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .thumb-index{
+  position:absolute;top:2px;left:3px;font-size:9px;font-family:var(--font-mono);
+  color:#fff;background:rgba(0,0,0,.7);border-radius:2px;padding:0 3px;line-height:14px;letter-spacing:.03em;
+}
+.thumb .thumb-remove{
+  position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;
+  background:var(--danger);color:#fff;border:none;cursor:pointer;
+  font-size:10px;line-height:15px;text-align:center;opacity:0;transition:opacity .12s;
+}
+.thumb:hover .thumb-remove,.thumb:active .thumb-remove{opacity:1}
+.thumb .thumb-check{
+  position:absolute;bottom:2px;right:2px;width:16px;height:16px;
+  accent-color:var(--accent);cursor:pointer;opacity:0;transition:opacity .12s;border-radius:2px;
+}
+.thumb:hover .thumb-check,.thumb:active .thumb-check,.thumb.show-check .thumb-check{opacity:1}
+
+/* ===== Image List View (alternative to thumbnails) ===== */
+.image-list-overlay{
+  display:none;position:absolute;bottom:0;left:0;right:0;max-height:340px;
+  background:var(--bg-surface);border-top:1px solid var(--border);
+  z-index:5;flex-direction:column;overflow:hidden;
+  box-shadow:0 -4px 20px rgba(0,0,0,.4);
+}
+.image-list-overlay.open{display:flex}
+.image-list-scroll{flex:1;overflow-y:auto;padding:4px 0}
+.image-list-scroll::-webkit-scrollbar{width:3px}
+.image-list-scroll::-webkit-scrollbar-track{background:transparent}
+.image-list-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.image-list-item{
+  display:flex;align-items:center;gap:8px;padding:5px 12px;
+  cursor:pointer;transition:background .1s;border-left:2px solid transparent;
+  -webkit-tap-highlight-color:transparent;
+}
+.image-list-item:hover{background:var(--bg-raised)}
+.image-list-item.active{border-left-color:var(--accent);background:var(--accent-glow)}
+.image-list-item .li-thumb{
+  width:32px;height:32px;border-radius:var(--radius-sm);overflow:hidden;
+  flex-shrink:0;border:1px solid var(--border);
+}
+.image-list-item .li-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.image-list-item .li-info{flex:1;min-width:0}
+.image-list-item .li-name{
+  font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.image-list-item .li-dims{
+  font-size:10px;color:var(--text-muted);font-family:var(--font-mono);
+}
+.image-list-item .li-index{
+  font-size:10px;color:var(--text-muted);font-family:var(--font-mono);
+  min-width:24px;text-align:right;
+}
+.image-list-item .li-actions{display:flex;gap:2px;flex-shrink:0}
+.image-list-item .li-actions button{
+  padding:3px 7px;font-size:10px;border:1px solid var(--border);
+  background:transparent;color:var(--text-dim);border-radius:var(--radius-sm);
+  cursor:pointer;transition:all .12s;
+}
+.image-list-item .li-actions button:hover{border-color:var(--accent);color:var(--accent)}
+.image-list-item .li-actions button.danger:hover{border-color:var(--danger);color:var(--danger)}
+.image-list-empty{
+  padding:20px;text-align:center;color:var(--text-muted);font-size:12px;
+}
+
+/* Controls */
+.controls{
+  width:326px;min-width:326px;background:var(--bg-surface);
+  border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;
+}
+.controls-scroll{
+  flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 14px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.controls-scroll::-webkit-scrollbar{width:3px}
+.controls-scroll::-webkit-scrollbar-track{background:transparent}
+.controls-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.controls .section{
+  background:var(--bg-raised);border-radius:var(--radius);padding:12px;border:1px solid var(--border);
+}
+.controls .section-title{
+  font-size:10px;color:var(--text-muted);margin-bottom:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.08em;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.section-title .section-actions{display:flex;gap:3px}
+.section-title .section-actions button{
+  font-size:9px;padding:2px 7px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);background:transparent;color:var(--text-muted);
+  cursor:pointer;white-space:nowrap;transition:all .12s;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.section-title .section-actions button:hover{
+  border-color:var(--accent);color:var(--accent);background:var(--accent-glow);
 }
 
 /* Mode tabs */
-.mode-tabs { display: flex; gap: 1px; background: var(--bg-input); border-radius: var(--radius-sm); padding: 2px; }
-.mode-tab {
-  flex: 1; padding: 6px 8px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 12px; text-align: center;
-  transition: all 0.15s;
-  -webkit-tap-highlight-color: transparent;
-  font-family: var(--font); font-weight: 500;
+.mode-tabs{display:flex;gap:1px;background:var(--bg-input);border-radius:var(--radius-sm);padding:2px}
+.mode-tab{
+  flex:1;padding:6px 8px;background:transparent;border:none;color:var(--text-muted);
+  border-radius:var(--radius-sm);cursor:pointer;font-size:12px;text-align:center;
+  transition:all .15s;-webkit-tap-highlight-color:transparent;font-family:var(--font);font-weight:500;
 }
-.mode-tab.active { background: var(--accent); color: #1a1815; font-weight: 600; }
-.mode-tab:hover:not(.active) { color: var(--text-dim); }
+.mode-tab.active{background:var(--accent);color:#1a1815;font-weight:600}
+.mode-tab:hover:not(.active){color:var(--text-dim)}
 
 /* Form controls */
-.form-group { margin-bottom: 7px; }
-.form-group:last-child { margin-bottom: 0; }
-.form-group label {
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: 11px; color: var(--text-dim); margin-bottom: 3px;
-  font-weight: 500;
+.form-group{margin-bottom:7px}
+.form-group:last-child{margin-bottom:0}
+.form-group label{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:11px;color:var(--text-dim);margin-bottom:3px;font-weight:500;
 }
 .form-group input[type="text"],
-.form-group select {
-  width: 100%;
-  padding: 7px 9px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 13px; font-family: var(--font);
-  outline: none;
-  transition: border-color 0.15s;
+.form-group select{
+  width:100%;padding:7px 9px;background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:var(--font);
+  outline:none;transition:border-color .15s;
 }
 .form-group input[type="text"]:focus,
-.form-group select:focus { border-color: var(--accent); }
-.form-group input[type="text"]::placeholder { color: var(--text-muted); }
-
-/* Custom range slider */
-.form-group input[type="range"] {
-  -webkit-appearance: none; appearance: none;
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--bg-input);
-  outline: none;
-  cursor: pointer;
+.form-group select:focus{border-color:var(--accent)}
+.form-group input[type="text"]::placeholder{color:var(--text-muted)}
+.form-group input[type="range"]{
+  -webkit-appearance:none;appearance:none;width:100%;height:4px;
+  border-radius:2px;background:var(--bg-input);outline:none;cursor:pointer;
 }
-.form-group input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: var(--accent);
-  cursor: pointer;
-  border: 2px solid var(--bg-raised);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-  transition: transform 0.1s;
+.form-group input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--accent);cursor:pointer;border:2px solid var(--bg-raised);
+  box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .1s;
 }
-.form-group input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.15); }
-/* Firefox */
-.form-group input[type="range"]::-moz-range-thumb {
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: var(--accent);
-  cursor: pointer;
-  border: 2px solid var(--bg-raised);
+.form-group input[type="range"]::-webkit-slider-thumb:active{transform:scale(1.15)}
+.form-group input[type="color"]{
+  width:32px;height:26px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;background:transparent;padding:2px;
+}
+.form-row{display:flex;gap:8px;align-items:end}
+.form-row .form-group{flex:1}
+.form-group .value-label{
+  font-size:10px;color:var(--accent);font-family:var(--font-mono);font-weight:500;letter-spacing:.02em;
 }
 
-.form-group input[type="color"] {
-  width: 32px; height: 26px;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  cursor: pointer; background: transparent; padding: 2px;
+.select-bar{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);
 }
-.form-row { display: flex; gap: 8px; align-items: end; }
-.form-row .form-group { flex: 1; }
-.form-group .value-label {
-  font-size: 10px; color: var(--accent);
-  font-family: var(--font-mono); font-weight: 500;
-  letter-spacing: 0.02em;
+.select-bar label{cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.select-bar input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+.hint-text{font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.5}
+
+/* Auto-filename toggle */
+.auto-filename-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
+}
+.auto-filename-bar label{
+  font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer;
+}
+.auto-filename-bar input[type="checkbox"]{accent-color:var(--accent)}
+.auto-filename-bar .af-hint{
+  font-size:9px;color:var(--text-muted);font-family:var(--font-mono);
 }
 
-.select-bar {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  font-size: 12px; color: var(--text-dim);
+/* Buttons */
+.btn{
+  padding:7px 13px;border:none;border-radius:var(--radius-sm);
+  font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;
+  white-space:nowrap;font-family:var(--font);letter-spacing:.02em;
+  -webkit-tap-highlight-color:transparent;
 }
-.select-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-.select-bar input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
-.hint-text { font-size: 10px; color: var(--text-muted); margin-top: 5px; line-height: 1.5; }
+.btn-primary{background:var(--accent);color:#1a1815}
+.btn-primary:hover{background:#e0ad50}
+.btn-secondary{background:transparent;color:var(--text-dim);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--text-dim);color:var(--text)}
+.btn-download{
+  flex:1;padding:9px 8px;background:var(--accent);color:#1a1815;
+  font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-sm);
+}
+.btn-download:hover{background:#e0ad50}
+.btn-download:disabled{background:var(--bg-input);color:var(--text-muted);cursor:not-allowed}
+.btn-outline{
+  flex:1;padding:9px 8px;background:transparent;border:1px solid var(--accent);
+  color:var(--accent);font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-sm);
+}
+.btn-outline:hover{background:var(--accent-glow)}
+.btn-outline:disabled{border-color:var(--border);color:var(--text-muted);cursor:not-allowed}
+.download-group{display:flex;gap:5px}
 
-/* ===== Buttons ===== */
-.btn {
-  padding: 7px 13px;
-  border: none; border-radius: var(--radius-sm);
-  font-size: 12px; font-weight: 600;
-  cursor: pointer; transition: all 0.12s;
-  white-space: nowrap;
-  font-family: var(--font);
-  letter-spacing: 0.02em;
-  -webkit-tap-highlight-color: transparent;
+/* Processing overlay */
+.processing-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(23,22,26,.92);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px);
 }
-.btn-primary { background: var(--accent); color: #1a1815; }
-.btn-primary:hover { background: #e0ad50; }
-.btn-secondary {
-  background: transparent; color: var(--text-dim);
-  border: 1px solid var(--border);
+.processing-overlay .spinner{
+  width:36px;height:36px;border:2px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
 }
-.btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
-.btn-download {
-  flex: 1; padding: 9px 8px;
-  background: var(--accent); color: #1a1815;
-  font-size: 12px; font-weight: 600;
-  letter-spacing: 0.03em;
-  border-radius: var(--radius-sm);
-}
-.btn-download:hover { background: #e0ad50; }
-.btn-download:disabled {
-  background: var(--bg-input); color: var(--text-muted);
-  cursor: not-allowed; box-shadow: none;
-}
-.btn-outline {
-  flex: 1; padding: 9px 8px;
-  background: transparent; border: 1px solid var(--accent); color: var(--accent);
-  font-size: 12px; font-weight: 600;
-  letter-spacing: 0.03em;
-  border-radius: var(--radius-sm);
-}
-.btn-outline:hover { background: var(--accent-glow); }
-.btn-outline:disabled {
-  border-color: var(--border); color: var(--text-muted);
-  cursor: not-allowed;
-}
-.download-group { display: flex; gap: 5px; }
-
-/* ===== Processing overlay ===== */
-.processing-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(23, 22, 26, 0.92);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  z-index: 999;
-  backdrop-filter: blur(4px);
-}
-.processing-overlay .spinner {
-  width: 36px; height: 36px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.processing-overlay p {
-  margin-top: 14px; color: var(--text-dim);
-  font-size: 13px; font-family: var(--font-mono);
-  letter-spacing: 0.04em;
+@keyframes spin{to{transform:rotate(360deg)}}
+.processing-overlay p{
+  margin-top:14px;color:var(--text-dim);font-size:13px;
+  font-family:var(--font-mono);letter-spacing:.04em;
 }
 
-/* ===== Toast ===== */
-.toast {
-  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-  background: var(--bg-raised); color: var(--accent);
-  padding: 8px 20px; border-radius: var(--radius);
-  font-size: 13px; z-index: 1001;
-  opacity: 0; transition: opacity 0.25s;
-  pointer-events: none;
-  border: 1px solid var(--accent);
-  font-family: var(--font-mono); letter-spacing: 0.03em;
+/* Toast */
+.toast{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  background:var(--bg-raised);color:var(--accent);padding:8px 20px;
+  border-radius:var(--radius);font-size:13px;z-index:1001;
+  opacity:0;transition:opacity .25s;pointer-events:none;
+  border:1px solid var(--accent);font-family:var(--font-mono);letter-spacing:.03em;
 }
-.toast.show { opacity: 1; }
+.toast.show{opacity:1}
 
 /* Image name tag on canvas */
-.image-name-tag {
-  position: absolute; top: 8px; left: 8px;
-  background: rgba(0,0,0,0.6); color: var(--text-dim);
-  font-size: 10px; padding: 3px 7px; border-radius: var(--radius-sm);
-  pointer-events: none; font-family: var(--font-mono);
-  letter-spacing: 0.03em; border: 1px solid rgba(255,255,255,0.06);
+.image-name-tag{
+  position:absolute;top:8px;left:8px;
+  background:rgba(0,0,0,.6);color:var(--text-dim);font-size:10px;
+  padding:3px 7px;border-radius:var(--radius-sm);pointer-events:none;
+  font-family:var(--font-mono);letter-spacing:.03em;border:1px solid rgba(255,255,255,.06);
 }
 
-/* ===== Controls handle (mobile pull indicator) ===== */
-.controls-handle {
-  display: none;
-  width: 28px; height: 3px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 8px auto 0;
+/* Controls handle (mobile) */
+.controls-handle{display:none;width:28px;height:3px;background:var(--border);border-radius:2px;margin:8px auto 0}
+.controls-backdrop{display:none}
+
+/* ===== Mobile ===== */
+@media(max-width:768px){
+  .header{height:42px;padding:0 12px}
+  .header-logo h1{font-size:13px}
+  .header .mobile-toggle{display:flex}
+  .header .actions .btn.hide-mobile{display:none}
+  .container{flex-direction:column;position:relative}
+  .preview{flex:1;min-height:280px}
+  .preview-canvas-area{padding:12px}
+  .preview .drop-zone{padding:40px 20px;max-width:280px}
+  .preview .drop-zone p{font-size:12px}
+  .upload-icon{width:36px;height:36px}
+  .bottom-bar-tools{padding:4px 8px;gap:4px}
+  .thumbnail-strip{min-height:50px;padding:4px 8px;gap:4px}
+  .thumb,.thumbnail-strip .add-btn{width:36px;height:36px;min-width:36px}
+  .zoom-controls{bottom:8px;right:8px}
+  .controls{
+    position:fixed;top:0;left:0;width:100%;min-width:0;
+    height:100%;height:100dvh;z-index:50;transform:translateY(100%);
+    border-left:none;border-radius:14px 14px 0 0;
+    box-shadow:0 -8px 32px rgba(0,0,0,.6);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+  }
+  .controls.open{transform:translateY(0)}
+  .controls-handle{display:block}
+  .controls-backdrop{
+    display:block;position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,.45);z-index:49;opacity:0;pointer-events:none;transition:opacity .3s;
+  }
+  .controls-backdrop.open{opacity:1;pointer-events:auto}
+  .controls-scroll{padding:0 12px 20px}
+  .image-list-overlay{max-height:260px}
 }
-.controls-backdrop { display: none; }
-
-/* =========================================== */
-/* ===== MOBILE & TABLET (< 769px) =========== */
-/* =========================================== */
-@media (max-width: 768px) {
-  .header { height: 42px; padding: 0 12px; }
-  .header-logo h1 { font-size: 13px; }
-  .header .mobile-toggle { display: flex; }
-  .header .actions .btn.hide-mobile { display: none; }
-  .container { flex-direction: column; position: relative; }
-  .preview { flex: 1; min-height: 280px; }
-  .preview-canvas-area { padding: 12px; }
-  .preview .drop-zone { padding: 40px 20px; max-width: 280px; }
-  .preview .drop-zone p { font-size: 12px; }
-  .upload-icon { width: 36px; height: 36px; }
-  .thumbnail-strip {
-    min-height: 54px; padding: 6px 10px; gap: 4px;
-  }
-  .thumb, .thumbnail-strip .add-btn {
-    width: 38px; height: 38px; min-width: 38px;
-  }
-
-  /* Slide-up settings panel */
-  .controls {
-    position: fixed; top: 0; left: 0; width: 100%; min-width: 0;
-    height: 100%; height: 100dvh;
-    z-index: 50;
-    transform: translateY(100%);
-    border-left: none;
-    border-radius: 14px 14px 0 0;
-    box-shadow: 0 -8px 32px rgba(0,0,0,0.6);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .controls.open { transform: translateY(0); }
-  .controls-handle { display: block; }
-  .controls-backdrop {
-    display: block; position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.45); z-index: 49;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.3s;
-  }
-  .controls-backdrop.open { opacity: 1; pointer-events: auto; }
-  .controls-scroll { padding: 0 14px 20px; }
-}
-
-/* ===== TOUCH DEVICE adjustments ===== */
-@media (hover: none) and (pointer: coarse) {
-  .form-group input[type="range"] { height: 6px; }
-  .form-group input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; }
-  .btn, .btn-download, .btn-outline { min-height: 38px; }
-  .mode-tab { padding: 8px; }
+@media(hover:none) and (pointer:coarse){
+  .form-group input[type="range"]{height:6px}
+  .form-group input[type="range"]::-webkit-slider-thumb{width:22px;height:22px}
+  .btn,.btn-download,.btn-outline{min-height:38px}
+  .mode-tab{padding:8px}
+  .zoom-btn{width:30px;height:30px;font-size:18px}
+  .nav-btn{width:28px;height:28px}
 }
 </style>
 </head>
@@ -555,9 +504,7 @@ body {
     <button class="btn btn-secondary hide-mobile" onclick="resetAll()">清除全部</button>
     <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">+ 添加图片</button>
     <button class="btn btn-secondary mobile-toggle" id="mobileSettingsBtn" onclick="toggleMobileSettings()" title="设置">
-      <span class="settings-icon">
-        <span></span><span></span><span></span>
-      </span>
+      <span class="settings-icon"><span></span><span></span><span></span></span>
     </button>
   </div>
 </div>
@@ -576,10 +523,46 @@ body {
         <div class="image-name-tag" id="imageNameTag"></div>
       </div>
     </div>
-    <!-- Thumbnail strip -->
-    <div class="thumbnail-strip" id="thumbnailStrip" style="display:none;">
-      <button class="add-btn" onclick="document.getElementById('fileInput').click()" title="添加图片">+</button>
-      <span class="count-badge" id="countBadge"></span>
+
+    <!-- Zoom controls (floating) -->
+    <div class="zoom-controls" id="zoomControls" style="display:none;">
+      <button class="zoom-btn" onclick="zoomOut()" title="缩小">−</button>
+      <span class="zoom-label" id="zoomLabel" onclick="zoomReset()" title="重置缩放">100%</span>
+      <button class="zoom-btn" onclick="zoomIn()" title="放大">+</button>
+      <div class="zoom-divider"></div>
+      <button class="zoom-btn" onclick="zoomFit()" title="适合窗口">⊡</button>
+    </div>
+
+    <!-- Bottom Bar: search + nav + list view -->
+    <div class="bottom-bar" id="bottomBar" style="display:none;">
+      <div class="bottom-bar-tools">
+        <div class="search-wrap">
+          <span class="search-icon">&#x2315;</span>
+          <input type="text" id="imageSearch" placeholder="搜索文件名..." oninput="onSearchInput()">
+        </div>
+        <div class="nav-btns">
+          <button class="nav-btn" onclick="navPrev()" title="上一张 (←)">&#x2039;</button>
+          <span class="nav-pos" id="navPos" onclick="focusJump()" title="点击跳转">1/1</span>
+          <button class="nav-btn" onclick="navNext()" title="下一张 (→)">&#x203A;</button>
+        </div>
+        <input type="number" class="nav-jump" id="navJump" min="1" placeholder="跳转"
+          onkeydown="if(event.key==='Enter')jumpToImage()" style="display:none;">
+        <button class="view-toggle" id="viewToggle" onclick="toggleListView()" title="列表视图">
+          <span class="list-dot"><span></span><span></span><span></span><span></span></span>
+        </button>
+      </div>
+
+      <!-- Thumbnail strip -->
+      <div class="thumbnail-strip" id="thumbnailStrip">
+        <button class="add-btn" onclick="document.getElementById('fileInput').click()" title="添加图片">+</button>
+        <span class="count-badge" id="countBadge"></span>
+      </div>
+
+      <!-- Image list view overlay -->
+      <div class="image-list-overlay" id="imageListOverlay">
+        <div class="image-list-scroll" id="imageListScroll"></div>
+        <div class="image-list-empty" id="imageListEmpty" style="display:none;">无匹配图片</div>
+      </div>
     </div>
   </div>
 
@@ -593,9 +576,7 @@ body {
       <!-- Watermark mode -->
       <div class="section">
         <div class="section-title">水印模式
-          <div class="section-actions">
-            <button onclick="applyToAll('mode')">全部应用</button>
-          </div>
+          <div class="section-actions"><button onclick="applyToAll('mode')">全部应用</button></div>
         </div>
         <div class="mode-tabs">
           <button class="mode-tab active" data-mode="single" onclick="switchMode('single')">单个水印</button>
@@ -603,17 +584,29 @@ body {
         </div>
       </div>
 
+      <!-- One-click apply all -->
+      <div class="section" style="border-color:var(--accent);background:var(--accent-glow)">
+        <button class="btn btn-primary" onclick="applyAllSettings()" style="width:100%;padding:10px;font-size:13px;letter-spacing:.04em">
+          一键应用当前设置到全部图片
+        </button>
+        <p style="font-size:9px;color:var(--text-muted);text-align:center;margin-top:4px">
+          将当前图片的水印模式、文字、位置、平铺等全部设置复制到所有图片
+        </p>
+      </div>
+
       <!-- Text settings -->
       <div class="section">
         <div class="section-title">水印文字
-          <div class="section-actions">
-            <button onclick="applyToAll('text')">全部应用</button>
-          </div>
+          <div class="section-actions"><button onclick="applyToAll('text')">全部应用</button></div>
         </div>
         <div class="form-group">
           <input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="saveConfigAndRender()">
         </div>
-        <div class="form-row">
+        <div class="auto-filename-bar">
+          <label><input type="checkbox" id="autoFilename" onchange="onAutoFilenameToggle()"> 使用文件名作为水印</label>
+          <span class="af-hint" id="afHint"></span>
+        </div>
+        <div class="form-row" style="margin-top:6px;">
           <div class="form-group">
             <label>字体</label>
             <select id="wmFont" onchange="saveConfigAndRender()">
@@ -632,10 +625,7 @@ body {
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group">
-            <label>颜色</label>
-            <input type="color" id="wmColor" value="#ffffff" onchange="saveConfigAndRender()">
-          </div>
+          <div class="form-group"><label>颜色</label><input type="color" id="wmColor" value="#ffffff" onchange="saveConfigAndRender()"></div>
           <div class="form-group">
             <label>不透明度<span class="value-label" id="opacityLabel">0.30</span></label>
             <input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOpacityChange()">
@@ -646,15 +636,13 @@ body {
       <!-- Single mode -->
       <div class="section" id="singleControls">
         <div class="section-title">单个水印设置
-          <div class="section-actions">
-            <button onclick="applyToAll('single')">全部应用</button>
-          </div>
+          <div class="section-actions"><button onclick="applyToAll('single')">全部应用</button></div>
         </div>
         <div class="form-group">
           <label>旋转<span class="value-label" id="angleLabel">-30°</span></label>
           <input type="range" id="wmAngle" min="-180" max="180" value="-30" oninput="onAngleChange()">
         </div>
-        <div class="form-row" style="margin-bottom:5px;">
+        <div class="form-row" style="margin-bottom:5px">
           <div class="form-group">
             <label>水平<span class="value-label" id="posXLabel">50%</span></label>
             <input type="range" id="wmPosX" min="0" max="100" value="50" oninput="onPosXChange()">
@@ -664,18 +652,16 @@ body {
             <input type="range" id="wmPosY" min="0" max="100" value="50" oninput="onPosYChange()">
           </div>
         </div>
-        <p class="hint-text">在图片上拖动水印可实时调整位置</p>
-        <div class="select-bar" style="margin-top:5px;">
+        <p class="hint-text">在图片上拖动水印可实时调整位置 · Ctrl+滚轮缩放</p>
+        <div class="select-bar" style="margin-top:5px">
           <label><input type="checkbox" id="syncPos"> 所有图片统一位置</label>
         </div>
       </div>
 
       <!-- Tile mode -->
-      <div class="section" id="tileControls" style="display:none;">
+      <div class="section" id="tileControls" style="display:none">
         <div class="section-title">平铺设置
-          <div class="section-actions">
-            <button onclick="applyToAll('tile')">全部应用</button>
-          </div>
+          <div class="section-actions"><button onclick="applyToAll('tile')">全部应用</button></div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -706,746 +692,487 @@ body {
       <!-- Selection & Download -->
       <div class="select-bar">
         <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> 全选</label>
-        <span style="flex:1;"></span>
-        <span id="selectCount" style="color:var(--accent);font-family:var(--font-mono);">0</span>
-        <span style="color:var(--text-muted);">/</span>
-        <span id="totalCount" style="font-family:var(--font-mono);">0</span>
-        <span style="color:var(--text-muted);">张</span>
+        <span style="flex:1"></span>
+        <span id="selectCount" style="color:var(--accent);font-family:var(--font-mono)">0</span>
+        <span style="color:var(--text-muted)">/</span>
+        <span id="totalCount" style="font-family:var(--font-mono)">0</span>
+        <span style="color:var(--text-muted)">张</span>
       </div>
 
       <div class="download-group">
         <button class="btn btn-download" id="btnDownloadCurrent" disabled onclick="downloadCurrent()">下载当前</button>
         <button class="btn btn-download" id="btnDownloadSelected" disabled onclick="downloadSelected()">下载选中</button>
       </div>
-      <button class="btn btn-outline" id="btnDownloadAll" disabled onclick="downloadAllZip()" style="width:100%;">
-        打包下载全部 (.zip)
-      </button>
-      <button class="btn btn-secondary" id="btnClear" disabled onclick="resetAll()" style="width:100%;">
-        清除全部图片
-      </button>
+      <button class="btn btn-outline" id="btnDownloadAll" disabled onclick="downloadAllZip()" style="width:100%">打包下载全部 (.zip)</button>
+      <button class="btn btn-secondary" id="btnClear" disabled onclick="resetAll()" style="width:100%">清除全部图片</button>
     </div>
   </div>
 </div>
 
-<!-- Processing overlay -->
-<div class="processing-overlay" id="processingOverlay" style="display:none;">
+<div class="processing-overlay" id="processingOverlay" style="display:none">
   <div class="spinner"></div>
   <p id="processingMsg">处理中...</p>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
 // ==================== Default config ====================
-function defaultConfig() {
-  return {
-    mode: 'single',
-    text: '我的水印',
-    font: 'Microsoft YaHei',
-    fontSize: 32,
-    color: '#ffffff',
-    opacity: 0.3,
-    wmPos: { x: 0.5, y: 0.5 },
-    angle: -30,
-    tileCols: 4,
-    tileRows: 3,
-    tileAngle: -30,
-    tileOffsetX: 0,
-    tileOffsetY: 0,
-  };
-}
+function defaultConfig(){return{
+  mode:'single',text:'我的水印',font:'Microsoft YaHei',fontSize:32,color:'#ffffff',opacity:.3,
+  wmPos:{x:.5,y:.5},angle:-30,tileCols:4,tileRows:3,tileAngle:-30,tileOffsetX:0,tileOffsetY:0
+}}
 
 // ==================== State ====================
-let images = [];
-let currentIndex = 0;
-let syncPosition = false;
-let dragging = false;
+let images=[], currentIndex=0, syncPosition=false, dragging=false;
+let zoomLevel=1, listViewOpen=false, imageFilter='';
+let autoFilename=false;
 
-function getCurrentConfig() {
-  if (images.length === 0) return defaultConfig();
-  return images[currentIndex].config;
-}
+function getCurrentConfig(){return images.length===0?defaultConfig():images[currentIndex].config}
 
 // ==================== DOM refs ====================
-const dropZone = document.getElementById('dropZone');
-const canvasWrapper = document.getElementById('canvasWrapper');
-const canvasArea = document.getElementById('canvasArea');
-const mainCanvas = document.getElementById('mainCanvas');
-const ctx = mainCanvas.getContext('2d');
-const fileInput = document.getElementById('fileInput');
-const thumbnailStrip = document.getElementById('thumbnailStrip');
-const controlsPanel = document.getElementById('controlsPanel');
-const controlsBackdrop = document.getElementById('controlsBackdrop');
+const dropZone=document.getElementById('dropZone');
+const canvasWrapper=document.getElementById('canvasWrapper');
+const canvasArea=document.getElementById('canvasArea');
+const mainCanvas=document.getElementById('mainCanvas');
+const ctx=mainCanvas.getContext('2d');
+const fileInput=document.getElementById('fileInput');
+const thumbnailStrip=document.getElementById('thumbnailStrip');
+const controlsPanel=document.getElementById('controlsPanel');
+const controlsBackdrop=document.getElementById('controlsBackdrop');
+const bottomBar=document.getElementById('bottomBar');
+const zoomControls=document.getElementById('zoomControls');
+const imageListOverlay=document.getElementById('imageListOverlay');
 
 // ==================== Image loading ====================
-fileInput.addEventListener('change', e => {
-  if (e.target.files.length) {
-    loadFiles(Array.from(e.target.files));
-    fileInput.value = '';
-  }
+fileInput.addEventListener('change',e=>{
+  if(e.target.files.length){loadFiles(Array.from(e.target.files));fileInput.value=''}
 });
-
-function handleDropFiles(files) {
-  const imgFiles = files.filter(f => f.type.startsWith('image/'));
-  if (imgFiles.length) loadFiles(imgFiles);
+function handleDropFiles(files){
+  const imgFiles=files.filter(f=>f.type.startsWith('image/'));
+  if(imgFiles.length)loadFiles(imgFiles)
 }
-
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  handleDropFiles(Array.from(e.dataTransfer.files));
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over')});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault();dropZone.classList.remove('drag-over');
+  handleDropFiles(Array.from(e.dataTransfer.files))
+});
+canvasArea.addEventListener('dragover',e=>e.preventDefault());
+canvasArea.addEventListener('drop',e=>{e.preventDefault();handleDropFiles(Array.from(e.dataTransfer.files))});
+document.addEventListener('paste',e=>{
+  const files=[];
+  for(const item of e.clipboardData.items){if(item.type.startsWith('image/'))files.push(item.getAsFile())}
+  if(files.length)loadFiles(files)
 });
 
-canvasArea.addEventListener('dragover', e => { e.preventDefault(); });
-canvasArea.addEventListener('drop', e => {
-  e.preventDefault();
-  handleDropFiles(Array.from(e.dataTransfer.files));
-});
-
-document.addEventListener('paste', e => {
-  const files = [];
-  for (const item of e.clipboardData.items) {
-    if (item.type.startsWith('image/')) files.push(item.getAsFile());
-  }
-  if (files.length) loadFiles(files);
-});
-
-function loadFiles(files) {
-  let loaded = 0;
-  const startIdx = images.length;
-  const total = files.length;
-  const newImages = [];
-
-  files.forEach((file, i) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
+function loadFiles(files){
+  let loaded=0;const startIdx=images.length,total=files.length,newImages=[];
+  files.forEach((file,i)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const name=file.name||`image_${startIdx+i+1}.png`;
         newImages.push({
-          _order: startIdx + i,
-          img: img,
-          name: file.name || `image_${startIdx + i + 1}.png`,
-          selected: true,
-          config: { ...defaultConfig(), wmPos: { x: 0.5, y: 0.5 } }
+          _order:startIdx+i,img,name,selected:true,
+          config:{...defaultConfig(),wmPos:{x:.5,y:.5},
+            text:autoFilename?name.replace(/\.[^.]+$/,''):defaultConfig().text}
         });
         loaded++;
-        if (loaded === total) {
-          newImages.sort((a, b) => a._order - b._order);
-          newImages.forEach(n => { delete n._order; images.push(n); });
-          onImagesChanged();
-          currentIndex = startIdx;
-          switchToImage(currentIndex);
-          closeMobileSettings();
+        if(loaded===total){
+          newImages.sort((a,b)=>a._order-b._order);
+          newImages.forEach(n=>{delete n._order;images.push(n)});
+          onImagesChanged();currentIndex=startIdx;switchToImage(currentIndex);closeMobileSettings()
         }
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+      };img.src=e.target.result
+    };reader.readAsDataURL(file)
+  })
+}
+
+function onImagesChanged(){
+  const has=images.length>0;
+  dropZone.style.display=has?'none':'';canvasWrapper.style.display=has?'inline-block':'none';
+  bottomBar.style.display=has?'flex':'none';zoomControls.style.display=has?'flex':'none';
+  ['btnDownloadCurrent','btnDownloadSelected','btnDownloadAll','btnClear'].forEach(id=>{
+    document.getElementById(id).disabled=!has
   });
+  if(!has){mainCanvas.width=0;mainCanvas.height=0;currentIndex=0;document.getElementById('imageNameTag').textContent=''}
+  updateThumbnails();updateCounts();updateNavPos();updateListView()
 }
 
-function onImagesChanged() {
-  const hasImages = images.length > 0;
-  dropZone.style.display = hasImages ? 'none' : '';
-  canvasWrapper.style.display = hasImages ? 'inline-block' : 'none';
-  thumbnailStrip.style.display = hasImages ? 'flex' : 'none';
-  document.getElementById('btnDownloadCurrent').disabled = !hasImages;
-  document.getElementById('btnDownloadSelected').disabled = !hasImages;
-  document.getElementById('btnDownloadAll').disabled = !hasImages;
-  document.getElementById('btnClear').disabled = !hasImages;
-
-  if (!hasImages) {
-    mainCanvas.width = 0; mainCanvas.height = 0;
-    currentIndex = 0;
-    document.getElementById('imageNameTag').textContent = '';
-  }
-
-  updateThumbnails();
-  updateCounts();
+function getFilteredImages(){
+  if(!imageFilter)return images;
+  const f=imageFilter.toLowerCase();
+  return images.map((item,i)=>({item,i})).filter(x=>x.item.name.toLowerCase().includes(f))
 }
 
-function updateThumbnails() {
-  const existing = thumbnailStrip.querySelectorAll('.thumb');
-  existing.forEach(t => t.remove());
-
-  images.forEach((item, i) => {
-    const div = document.createElement('div');
-    div.className = 'thumb' + (i === currentIndex ? ' active' : '') + (item.selected ? ' show-check' : '');
-    div.innerHTML =
-      `<img src="${item.img.src}" alt="">`
-      + `<span class="thumb-index">${i + 1}</span>`
-      + `<button class="thumb-remove" title="删除">&times;</button>`
-      + `<input type="checkbox" class="thumb-check" ${item.selected ? 'checked' : ''} title="选中">`;
-
-    const addBtn = thumbnailStrip.querySelector('.add-btn');
-    thumbnailStrip.insertBefore(div, addBtn);
-
-    div.addEventListener('click', e => {
-      if (e.target.classList.contains('thumb-remove')) {
-        e.stopPropagation();
-        removeImage(i); return;
-      }
-      if (e.target.classList.contains('thumb-check')) {
-        e.stopPropagation();
-        images[i].selected = e.target.checked;
-        div.classList.toggle('show-check', images[i].selected);
-        updateCounts(); return;
-      }
-      if (i !== currentIndex) switchToImage(i);
-    });
+function updateThumbnails(){
+  const existing=thumbnailStrip.querySelectorAll('.thumb');existing.forEach(t=>t.remove());
+  const filtered=getFilteredImages();
+  filtered.forEach(({item,i})=>{
+    const div=document.createElement('div');
+    div.className='thumb'+(i===currentIndex?' active':'')+(item.selected?' show-check':'');
+    div.innerHTML=`<img src="${item.img.src}" alt=""><span class="thumb-index">${i+1}</span><button class="thumb-remove" title="删除">&times;</button><input type="checkbox" class="thumb-check" ${item.selected?'checked':''} title="选中">`;
+    const addBtn=thumbnailStrip.querySelector('.add-btn');
+    thumbnailStrip.insertBefore(div,addBtn);
+    div.addEventListener('click',e=>{
+      if(e.target.classList.contains('thumb-remove')){e.stopPropagation();removeImage(i);return}
+      if(e.target.classList.contains('thumb-check')){e.stopPropagation();images[i].selected=e.target.checked;div.classList.toggle('show-check',images[i].selected);updateCounts();return}
+      if(i!==currentIndex)switchToImage(i)
+    })
   });
-
-  document.getElementById('countBadge').textContent = images.length > 0 ? `共 ${images.length} 张` : '';
+  document.getElementById('countBadge').textContent=images.length>0?`共 ${images.length} 张`:''
 }
 
-function updateCounts() {
-  const sel = images.filter(i => i.selected).length;
-  document.getElementById('selectCount').textContent = sel;
-  document.getElementById('totalCount').textContent = images.length;
-  document.getElementById('selectAll').checked = sel === images.length && images.length > 0;
+function updateListView(){
+  if(!listViewOpen)return;
+  const scroll=document.getElementById('imageListScroll');
+  const empty=document.getElementById('imageListEmpty');
+  scroll.innerHTML='';const filtered=getFilteredImages();
+  if(filtered.length===0){empty.style.display='block';return}else{empty.style.display='none'}
+  filtered.forEach(({item,i})=>{
+    const row=document.createElement('div');
+    row.className='image-list-item'+(i===currentIndex?' active':'');
+    row.innerHTML=`<span class="li-index">${i+1}</span><div class="li-thumb"><img src="${item.img.src}" alt=""></div><div class="li-info"><div class="li-name">${item.name}</div><div class="li-dims">${item.img.naturalWidth}×${item.img.naturalHeight}</div></div><div class="li-actions"><button onclick="event.stopPropagation();removeImage(${i})" class="danger" title="删除">×</button></div>`;
+    row.addEventListener('click',()=>{if(i!==currentIndex)switchToImage(i)});
+    scroll.appendChild(row)
+  })
 }
 
-function switchToImage(index) {
-  if (index < 0 || index >= images.length) return;
-  if (images.length > 0 && currentIndex < images.length) {
-    savePanelToConfig(images[currentIndex].config);
-  }
-  currentIndex = index;
+function updateCounts(){
+  const sel=images.filter(i=>i.selected).length;
+  document.getElementById('selectCount').textContent=sel;
+  document.getElementById('totalCount').textContent=images.length;
+  document.getElementById('selectAll').checked=sel===images.length&&images.length>0
+}
+
+function updateNavPos(){
+  const total=images.length;
+  document.getElementById('navPos').textContent=total>0?`${currentIndex+1}/${total}`:'0/0';
+  document.getElementById('navJump').max=total
+}
+
+function switchToImage(index){
+  if(index<0||index>=images.length)return;
+  if(images.length>0&&currentIndex<images.length)savePanelToConfig(images[currentIndex].config);
+  currentIndex=index;
   loadConfigToPanel(images[currentIndex].config);
-  fitCanvas();
-  render();
-  updateThumbnails();
-  document.getElementById('imageNameTag').textContent = images[currentIndex].name;
-  const thumb = thumbnailStrip.querySelectorAll('.thumb')[index];
-  if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  fitCanvas();render();updateThumbnails();updateNavPos();updateListView();
+  document.getElementById('imageNameTag').textContent=images[currentIndex].name;
+  // sync auto-filename hint
+  updateAfHint();
+  const thumb=thumbnailStrip.querySelectorAll('.thumb')[index];
+  if(thumb)thumb.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})
 }
 
-function removeImage(index) {
-  images.splice(index, 1);
-  if (images.length === 0) { onImagesChanged(); return; }
-  if (currentIndex >= images.length) currentIndex = images.length - 1;
-  onImagesChanged();
-  loadConfigToPanel(images[currentIndex].config);
-  fitCanvas();
-  render();
-  document.getElementById('imageNameTag').textContent = images[currentIndex].name;
+function removeImage(index){
+  images.splice(index,1);
+  if(images.length===0){onImagesChanged();return}
+  if(currentIndex>=images.length)currentIndex=images.length-1;
+  onImagesChanged();loadConfigToPanel(images[currentIndex].config);
+  fitCanvas();render();document.getElementById('imageNameTag').textContent=images[currentIndex].name;
+  updateAfHint()
 }
 
-function resetAll() {
-  images = []; currentIndex = 0;
-  onImagesChanged();
-  fileInput.value = '';
-  loadConfigToPanel(defaultConfig());
+function resetAll(){images=[];currentIndex=0;onImagesChanged();fileInput.value='';loadConfigToPanel(defaultConfig())}
+
+// ==================== Zoom ====================
+function setZoom(z,originX,originY){
+  zoomLevel=Math.max(.25,Math.min(3,z));
+  canvasWrapper.style.transform=`scale(${zoomLevel})`;
+  // If origin provided, adjust scroll
+  if(originX!==undefined&&originY!==undefined){
+    const area=canvasArea;const sx=area.scrollLeft,sy=area.scrollTop;
+    const ratio=zoomLevel/(zoomLevel-(z-zoomLevel)); // approximate
+    // Simple: keep center of zoom focal point
+    const dx=originX-area.clientWidth/2,dy=originY-area.clientHeight/2;
+    area.scrollLeft=sx+dx*(zoomLevel/1-1);
+    area.scrollTop=sy+dy*(zoomLevel/1-1);
+  }
+  document.getElementById('zoomLabel').textContent=Math.round(zoomLevel*100)+'%'
+}
+function zoomIn(){setZoom(zoomLevel*1.25)}
+function zoomOut(){setZoom(zoomLevel*.8)}
+function zoomReset(){setZoom(1)}
+function zoomFit(){if(images.length===0)return;const img=images[currentIndex].img;const aw=canvasArea.clientWidth-40,ah=canvasArea.clientHeight-40;const r=Math.min(aw/img.naturalWidth,ah/img.naturalHeight,1);setZoom(r)}
+
+// Ctrl+wheel zoom
+canvasArea.addEventListener('wheel',e=>{
+  if(!e.ctrlKey&&!e.metaKey)return;
+  e.preventDefault();
+  const rect=canvasArea.getBoundingClientRect();
+  const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+  const delta=-e.deltaY*0.002;
+  setZoom(zoomLevel*(1+delta),mx,my)
+},{passive:false});
+
+// Pinch zoom (mobile)
+let pinchStartDist=0,pinchStartZoom=1;
+canvasArea.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){pinchStartDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);pinchStartZoom=zoomLevel}
+},{passive:false});
+canvasArea.addEventListener('touchmove',e=>{
+  if(e.touches.length===2&&pinchStartDist>0){
+    const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    setZoom(pinchStartZoom*(dist/pinchStartDist))
+  }
+},{passive:false});
+canvasArea.addEventListener('touchend',()=>{pinchStartDist=0});
+
+// ==================== Search & Navigation ====================
+function onSearchInput(){
+  imageFilter=document.getElementById('imageSearch').value;
+  updateThumbnails();updateListView()
+}
+function navPrev(){if(images.length===0)return;switchToImage((currentIndex-1+images.length)%images.length)}
+function navNext(){if(images.length===0)return;switchToImage((currentIndex+1)%images.length)}
+function focusJump(){
+  const j=document.getElementById('navJump');j.style.display=j.style.display==='none'?'inline-block':'none';
+  if(j.style.display!=='none'){j.value=currentIndex+1;j.focus();j.select()}
+}
+function jumpToImage(){
+  const j=document.getElementById('navJump');
+  const n=parseInt(j.value);
+  if(n>=1&&n<=images.length){switchToImage(n-1)}
+  j.style.display='none'
 }
 
-// ==================== Config sync: panel <-> image ====================
-function savePanelToConfig(cfg) {
-  cfg.mode = document.querySelector('.mode-tab.active')?.dataset?.mode || 'single';
-  cfg.text = document.getElementById('wmText').value;
-  cfg.font = document.getElementById('wmFont').value;
-  cfg.fontSize = parseInt(document.getElementById('wmFontSize').value);
-  cfg.color = document.getElementById('wmColor').value;
-  cfg.opacity = parseFloat(document.getElementById('wmOpacity').value);
-  cfg.angle = parseInt(document.getElementById('wmAngle').value);
-  cfg.tileCols = parseInt(document.getElementById('tileCols').value);
-  cfg.tileRows = parseInt(document.getElementById('tileRows').value);
-  cfg.tileAngle = parseInt(document.getElementById('tileAngle').value);
-  cfg.tileOffsetX = parseInt(document.getElementById('tileOffsetX').value) / 100;
-  cfg.tileOffsetY = parseInt(document.getElementById('tileOffsetY').value) / 100;
-  cfg.wmPos = {
-    x: parseInt(document.getElementById('wmPosX').value) / 100,
-    y: parseInt(document.getElementById('wmPosY').value) / 100,
-  };
+// Toggle list view
+function toggleListView(){
+  listViewOpen=!listViewOpen;
+  imageListOverlay.classList.toggle('open',listViewOpen);
+  document.getElementById('viewToggle').classList.toggle('active',listViewOpen);
+  thumbnailStrip.style.display=listViewOpen?'none':'flex';
+  if(listViewOpen)updateListView()
 }
 
-function loadConfigToPanel(cfg) {
-  document.querySelectorAll('.mode-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.mode === cfg.mode);
+// Keyboard navigation
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  if(e.key==='ArrowLeft'){e.preventDefault();navPrev()}
+  if(e.key==='ArrowRight'){e.preventDefault();navNext()}
+  if(e.key==='Home'){e.preventDefault();if(images.length)switchToImage(0)}
+  if(e.key==='End'){e.preventDefault();if(images.length)switchToImage(images.length-1)}
+  if(e.key==='0'||e.key==='1'){document.getElementById('imageSearch').focus()}
+});
+
+// ==================== Auto filename watermark ====================
+function onAutoFilenameToggle(){
+  autoFilename=document.getElementById('autoFilename').checked;
+  if(autoFilename){
+    images.forEach(item=>{item.config.text=item.name.replace(/\.[^.]+$/,'')});
+    if(images.length>0){loadConfigToPanel(images[currentIndex].config);render()}
+  }
+  updateAfHint()
+}
+function updateAfHint(){
+  if(!autoFilename||images.length===0){document.getElementById('afHint').textContent='';return}
+  const fn=images[currentIndex].name.replace(/\.[^.]+$/,'');
+  document.getElementById('afHint').textContent=fn
+}
+
+// ==================== Config sync ====================
+function savePanelToConfig(cfg){
+  cfg.mode=document.querySelector('.mode-tab.active')?.dataset?.mode||'single';
+  cfg.text=document.getElementById('wmText').value;
+  cfg.font=document.getElementById('wmFont').value;
+  cfg.fontSize=parseInt(document.getElementById('wmFontSize').value);
+  cfg.color=document.getElementById('wmColor').value;
+  cfg.opacity=parseFloat(document.getElementById('wmOpacity').value);
+  cfg.angle=parseInt(document.getElementById('wmAngle').value);
+  cfg.tileCols=parseInt(document.getElementById('tileCols').value);
+  cfg.tileRows=parseInt(document.getElementById('tileRows').value);
+  cfg.tileAngle=parseInt(document.getElementById('tileAngle').value);
+  cfg.tileOffsetX=parseInt(document.getElementById('tileOffsetX').value)/100;
+  cfg.tileOffsetY=parseInt(document.getElementById('tileOffsetY').value)/100;
+  cfg.wmPos={x:parseInt(document.getElementById('wmPosX').value)/100,y:parseInt(document.getElementById('wmPosY').value)/100}
+}
+
+function loadConfigToPanel(cfg){
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===cfg.mode));
+  document.getElementById('singleControls').style.display=cfg.mode==='single'?'':'none';
+  document.getElementById('tileControls').style.display=cfg.mode==='tile'?'':'none';
+  document.getElementById('wmText').value=cfg.text;
+  document.getElementById('wmFont').value=cfg.font;
+  document.getElementById('wmFontSize').value=cfg.fontSize;
+  document.getElementById('fontSizeLabel').textContent=cfg.fontSize+'px';
+  document.getElementById('wmColor').value=cfg.color;
+  document.getElementById('wmOpacity').value=cfg.opacity;
+  document.getElementById('opacityLabel').textContent=cfg.opacity.toFixed(2);
+  document.getElementById('wmAngle').value=cfg.angle;
+  document.getElementById('angleLabel').textContent=cfg.angle+'°';
+  document.getElementById('wmPosX').value=Math.round(cfg.wmPos.x*100);
+  document.getElementById('wmPosY').value=Math.round(cfg.wmPos.y*100);
+  document.getElementById('posXLabel').textContent=Math.round(cfg.wmPos.x*100)+'%';
+  document.getElementById('posYLabel').textContent=Math.round(cfg.wmPos.y*100)+'%';
+  document.getElementById('tileCols').value=cfg.tileCols;
+  document.getElementById('colsLabel').textContent=cfg.tileCols;
+  document.getElementById('tileRows').value=cfg.tileRows;
+  document.getElementById('rowsLabel').textContent=cfg.tileRows;
+  document.getElementById('tileAngle').value=cfg.tileAngle;
+  document.getElementById('tileAngleLabel').textContent=cfg.tileAngle+'°';
+  document.getElementById('tileOffsetX').value=Math.round(cfg.tileOffsetX*100);
+  document.getElementById('tileOffsetY').value=Math.round(cfg.tileOffsetY*100);
+  document.getElementById('offsetXLabel').textContent=Math.round(cfg.tileOffsetX*100)+'%';
+  document.getElementById('offsetYLabel').textContent=Math.round(cfg.tileOffsetY*100)+'%';
+  window._mode=cfg.mode
+}
+
+function saveConfigAndRender(){if(images.length===0)return;savePanelToConfig(images[currentIndex].config);render()}
+
+function applyToAll(type){
+  if(images.length===0)return;savePanelToConfig(images[currentIndex].config);const src=images[currentIndex].config;
+  images.forEach((item,i)=>{
+    if(i===currentIndex)return;
+    if(type==='text'){item.config.text=src.text;item.config.font=src.font;item.config.fontSize=src.fontSize;item.config.color=src.color;item.config.opacity=src.opacity}
+    else if(type==='single'){item.config.angle=src.angle}
+    else if(type==='tile'){item.config.tileCols=src.tileCols;item.config.tileRows=src.tileRows;item.config.tileAngle=src.tileAngle;item.config.tileOffsetX=src.tileOffsetX;item.config.tileOffsetY=src.tileOffsetY}
+    else if(type==='mode'){item.config.mode=src.mode;loadConfigToPanel(images[currentIndex].config)}
   });
-  document.getElementById('singleControls').style.display = cfg.mode === 'single' ? '' : 'none';
-  document.getElementById('tileControls').style.display = cfg.mode === 'tile' ? '' : 'none';
-
-  document.getElementById('wmText').value = cfg.text;
-  document.getElementById('wmFont').value = cfg.font;
-  document.getElementById('wmFontSize').value = cfg.fontSize;
-  document.getElementById('fontSizeLabel').textContent = cfg.fontSize + 'px';
-  document.getElementById('wmColor').value = cfg.color;
-  document.getElementById('wmOpacity').value = cfg.opacity;
-  document.getElementById('opacityLabel').textContent = cfg.opacity.toFixed(2);
-
-  document.getElementById('wmAngle').value = cfg.angle;
-  document.getElementById('angleLabel').textContent = cfg.angle + '°';
-  document.getElementById('wmPosX').value = Math.round(cfg.wmPos.x * 100);
-  document.getElementById('wmPosY').value = Math.round(cfg.wmPos.y * 100);
-  document.getElementById('posXLabel').textContent = Math.round(cfg.wmPos.x * 100) + '%';
-  document.getElementById('posYLabel').textContent = Math.round(cfg.wmPos.y * 100) + '%';
-
-  document.getElementById('tileCols').value = cfg.tileCols;
-  document.getElementById('colsLabel').textContent = cfg.tileCols;
-  document.getElementById('tileRows').value = cfg.tileRows;
-  document.getElementById('rowsLabel').textContent = cfg.tileRows;
-  document.getElementById('tileAngle').value = cfg.tileAngle;
-  document.getElementById('tileAngleLabel').textContent = cfg.tileAngle + '°';
-  document.getElementById('tileOffsetX').value = Math.round(cfg.tileOffsetX * 100);
-  document.getElementById('tileOffsetY').value = Math.round(cfg.tileOffsetY * 100);
-  document.getElementById('offsetXLabel').textContent = Math.round(cfg.tileOffsetX * 100) + '%';
-  document.getElementById('offsetYLabel').textContent = Math.round(cfg.tileOffsetY * 100) + '%';
-
-  window._mode = cfg.mode;
+  showToast('已应用到全部图片');render()
 }
 
-function saveConfigAndRender() {
-  if (images.length === 0) return;
+// One-click: apply ALL settings from current image to all images
+function applyAllSettings(){
+  if(images.length===0)return;
   savePanelToConfig(images[currentIndex].config);
-  render();
-}
-
-function applyToAll(type) {
-  if (images.length === 0) return;
-  savePanelToConfig(images[currentIndex].config);
-  const src = images[currentIndex].config;
-
-  images.forEach((item, i) => {
-    if (i === currentIndex) return;
-    if (type === 'text') {
-      item.config.text = src.text;
-      item.config.font = src.font;
-      item.config.fontSize = src.fontSize;
-      item.config.color = src.color;
-      item.config.opacity = src.opacity;
-    } else if (type === 'single') {
-      item.config.angle = src.angle;
-    } else if (type === 'tile') {
-      item.config.tileCols = src.tileCols;
-      item.config.tileRows = src.tileRows;
-      item.config.tileAngle = src.tileAngle;
-      item.config.tileOffsetX = src.tileOffsetX;
-      item.config.tileOffsetY = src.tileOffsetY;
-    } else if (type === 'mode') {
-      item.config.mode = src.mode;
-      loadConfigToPanel(images[currentIndex].config);
-    }
+  const src=images[currentIndex].config;
+  images.forEach((item,i)=>{
+    if(i===currentIndex)return;
+    // Deep copy the entire config
+    item.config={...src,wmPos:{...src.wmPos}}
   });
-
-  showToast('已应用到全部图片');
-  render();
+  showToast(`已将全部设置应用到 ${images.length} 张图片`);render()
 }
 
 // ==================== Fit canvas ====================
-function fitCanvas() {
-  const img = images[currentIndex]?.img;
-  if (!img) return;
-  const maxW = canvasArea.clientWidth - 32;
-  const maxH = canvasArea.clientHeight - 32;
-  let w = img.naturalWidth;
-  let h = img.naturalHeight;
-  const ratio = Math.min(maxW / w, maxH / h, 1);
-  w = Math.floor(w * ratio);
-  h = Math.floor(h * ratio);
-  mainCanvas.width = w;
-  mainCanvas.height = h;
+function fitCanvas(){
+  const img=images[currentIndex]?.img;if(!img)return;
+  const maxW=canvasArea.clientWidth-32,maxH=canvasArea.clientHeight-32;
+  let w=img.naturalWidth,h=img.naturalHeight;
+  const ratio=Math.min(maxW/w,maxH/h,1);
+  w=Math.floor(w*ratio);h=Math.floor(h*ratio);
+  mainCanvas.width=w;mainCanvas.height=h
 }
-
-window.addEventListener('resize', () => {
-  if (images.length > 0) { fitCanvas(); render(); }
-});
+window.addEventListener('resize',()=>{if(images.length>0){fitCanvas();render()}});
 
 // ==================== Mode switching ====================
-function switchMode(newMode) {
-  if (images.length > 0) {
-    images[currentIndex].config.mode = newMode;
-  }
-  document.querySelectorAll('.mode-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.mode === newMode);
-  });
-  document.getElementById('singleControls').style.display = newMode === 'single' ? '' : 'none';
-  document.getElementById('tileControls').style.display = newMode === 'tile' ? '' : 'none';
-  window._mode = newMode;
-  render();
+function switchMode(newMode){
+  if(images.length>0)images[currentIndex].config.mode=newMode;
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===newMode));
+  document.getElementById('singleControls').style.display=newMode==='single'?'':'none';
+  document.getElementById('tileControls').style.display=newMode==='tile'?'':'none';
+  window._mode=newMode;render()
 }
 
-// ==================== Slider handlers (save + render) ====================
-document.getElementById('syncPos').addEventListener('change', function() {
-  syncPosition = this.checked;
-});
-
-function onFontSizeChange() {
-  document.getElementById('fontSizeLabel').textContent = this.value + 'px';
-  saveConfigAndRender();
-}
-function onOpacityChange() {
-  document.getElementById('opacityLabel').textContent = parseFloat(this.value).toFixed(2);
-  saveConfigAndRender();
-}
-function onAngleChange() {
-  document.getElementById('angleLabel').textContent = this.value + '°';
-  saveConfigAndRender();
-}
-function onTileChange() {
-  document.getElementById('colsLabel').textContent = document.getElementById('tileCols').value;
-  document.getElementById('rowsLabel').textContent = document.getElementById('tileRows').value;
-  saveConfigAndRender();
-}
-function onTileAngleChange() {
-  document.getElementById('tileAngleLabel').textContent = this.value + '°';
-  saveConfigAndRender();
-}
-function onTileOffsetChange() {
-  document.getElementById('offsetXLabel').textContent = document.getElementById('tileOffsetX').value + '%';
-  document.getElementById('offsetYLabel').textContent = document.getElementById('tileOffsetY').value + '%';
-  saveConfigAndRender();
-}
-function onPosXChange() {
-  document.getElementById('posXLabel').textContent = this.value + '%';
-  saveConfigAndRender();
-}
-function onPosYChange() {
-  document.getElementById('posYLabel').textContent = this.value + '%';
-  saveConfigAndRender();
-}
-
-['wmFontSize', 'wmOpacity', 'wmAngle', 'tileCols', 'tileRows', 'tileAngle', 'tileOffsetX', 'tileOffsetY', 'wmPosX', 'wmPosY'].forEach(id => {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const map = {
-    wmFontSize: onFontSizeChange, wmOpacity: onOpacityChange, wmAngle: onAngleChange,
-    tileCols: onTileChange, tileRows: onTileChange, tileAngle: onTileAngleChange,
-    tileOffsetX: onTileOffsetChange, tileOffsetY: onTileOffsetChange,
-    wmPosX: onPosXChange, wmPosY: onPosYChange,
-  };
-  el.addEventListener('input', map[id]);
+// ==================== Slider handlers ====================
+document.getElementById('syncPos').addEventListener('change',function(){syncPosition=this.checked});
+function onFontSizeChange(){document.getElementById('fontSizeLabel').textContent=this.value+'px';saveConfigAndRender()}
+function onOpacityChange(){document.getElementById('opacityLabel').textContent=parseFloat(this.value).toFixed(2);saveConfigAndRender()}
+function onAngleChange(){document.getElementById('angleLabel').textContent=this.value+'°';saveConfigAndRender()}
+function onTileChange(){document.getElementById('colsLabel').textContent=document.getElementById('tileCols').value;document.getElementById('rowsLabel').textContent=document.getElementById('tileRows').value;saveConfigAndRender()}
+function onTileAngleChange(){document.getElementById('tileAngleLabel').textContent=this.value+'°';saveConfigAndRender()}
+function onTileOffsetChange(){document.getElementById('offsetXLabel').textContent=document.getElementById('tileOffsetX').value+'%';document.getElementById('offsetYLabel').textContent=document.getElementById('tileOffsetY').value+'%';saveConfigAndRender()}
+function onPosXChange(){document.getElementById('posXLabel').textContent=this.value+'%';saveConfigAndRender()}
+function onPosYChange(){document.getElementById('posYLabel').textContent=this.value+'%';saveConfigAndRender()}
+['wmFontSize','wmOpacity','wmAngle','tileCols','tileRows','tileAngle','tileOffsetX','tileOffsetY','wmPosX','wmPosY'].forEach(id=>{
+  const el=document.getElementById(id);if(!el)return;
+  const map={wmFontSize:onFontSizeChange,wmOpacity:onOpacityChange,wmAngle:onAngleChange,tileCols:onTileChange,tileRows:onTileChange,tileAngle:onTileAngleChange,tileOffsetX:onTileOffsetChange,tileOffsetY:onTileOffsetChange,wmPosX:onPosXChange,wmPosY:onPosYChange};
+  el.addEventListener('input',map[id])
 });
 
 // ==================== Select all ====================
-function toggleSelectAll() {
-  const checked = document.getElementById('selectAll').checked;
-  images.forEach(i => i.selected = checked);
-  updateThumbnails();
-  updateCounts();
-}
+function toggleSelectAll(){const c=document.getElementById('selectAll').checked;images.forEach(i=>i.selected=c);updateThumbnails();updateCounts()}
 
 // ==================== Rendering ====================
-function render() {
-  const img = images[currentIndex]?.img;
-  if (!img) return;
-  const cfg = images[currentIndex].config;
-
-  const cw = mainCanvas.width;
-  const ch = mainCanvas.height;
-
-  ctx.clearRect(0, 0, cw, ch);
-  ctx.drawImage(img, 0, 0, cw, ch);
-
-  ctx.font = `${cfg.fontSize}px "${cfg.font}"`;
-  ctx.fillStyle = cfg.color;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.globalAlpha = cfg.opacity;
-
-  if (cfg.mode === 'single') {
-    renderSingle(cfg, cw, ch);
-  } else {
-    renderTile(cfg, cw, ch);
-  }
-
-  ctx.globalAlpha = 1;
+function render(){
+  const img=images[currentIndex]?.img;if(!img)return;
+  const cfg=images[currentIndex].config,cw=mainCanvas.width,ch=mainCanvas.height;
+  ctx.clearRect(0,0,cw,ch);ctx.drawImage(img,0,0,cw,ch);
+  ctx.font=`${cfg.fontSize}px "${cfg.font}"`;ctx.fillStyle=cfg.color;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=cfg.opacity;
+  if(cfg.mode==='single')renderSingle(cfg,cw,ch);else renderTile(cfg,cw,ch);
+  ctx.globalAlpha=1
 }
-
-function renderSingle(cfg, cw, ch) {
-  const x = cfg.wmPos.x * cw;
-  const y = cfg.wmPos.y * ch;
-  const angleRad = (cfg.angle * Math.PI) / 180;
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angleRad);
-  ctx.fillText(cfg.text, 0, 0);
-
-  if (!dragging) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    const metrics = ctx.measureText(cfg.text);
-    const bw = Math.max(metrics.width * 0.55, cfg.fontSize * 0.3);
-    const bh = cfg.fontSize * 0.65;
-    ctx.strokeRect(-bw, -bh, bw * 2, bh * 2);
-    ctx.setLineDash([]);
-  }
-
-  ctx.restore();
+function renderSingle(cfg,cw,ch){
+  const x=cfg.wmPos.x*cw,y=cfg.wmPos.y*ch,rad=(cfg.angle*Math.PI)/180;
+  ctx.save();ctx.translate(x,y);ctx.rotate(rad);ctx.fillText(cfg.text,0,0);
+  if(!dragging){ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.setLineDash([3,3]);const m=ctx.measureText(cfg.text);const bw=Math.max(m.width*.55,cfg.fontSize*.3),bh=cfg.fontSize*.65;ctx.strokeRect(-bw,-bh,bw*2,bh*2);ctx.setLineDash([])}
+  ctx.restore()
 }
-
-function renderTile(cfg, cw, ch) {
-  const cols = cfg.tileCols;
-  const rows = cfg.tileRows;
-  const angleRad = (cfg.tileAngle * Math.PI) / 180;
-  const cellW = cw / cols;
-  const cellH = ch / rows;
-  const offsetX = cfg.tileOffsetX * cellW;
-  const offsetY = cfg.tileOffsetY * cellH;
-  const extendCols = 2;
-  const extendRows = 2;
-
-  for (let row = -extendRows; row < rows + extendRows; row++) {
-    for (let col = -extendCols; col < cols + extendCols; col++) {
-      const cx = col * cellW + cellW / 2 + offsetX;
-      const cy = row * cellH + cellH / 2 + offsetY;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angleRad);
-      ctx.fillText(cfg.text, 0, 0);
-      ctx.restore();
-    }
-  }
+function renderTile(cfg,cw,ch){
+  const cols=cfg.tileCols,rows=cfg.tileRows,rad=(cfg.tileAngle*Math.PI)/180,cellW=cw/cols,cellH=ch/rows,ox=cfg.tileOffsetX*cellW,oy=cfg.tileOffsetY*cellH,ec=2,er=2;
+  for(let row=-er;row<rows+er;row++)for(let col=-ec;col<cols+ec;col++){const cx=col*cellW+cellW/2+ox,cy=row*cellH+cellH/2+oy;ctx.save();ctx.translate(cx,cy);ctx.rotate(rad);ctx.fillText(cfg.text,0,0);ctx.restore()}
 }
 
 // ==================== Canvas interaction (single mode) ====================
-function getCanvasPos(e) {
-  const rect = mainCanvas.getBoundingClientRect();
-  const scaleX = mainCanvas.width / rect.width;
-  const scaleY = mainCanvas.height / rect.height;
-  return {
-    x: (e.clientX - rect.left) * scaleX,
-    y: (e.clientY - rect.top) * scaleY,
-  };
+function getCanvasPos(e){const r=mainCanvas.getBoundingClientRect();return{x:(e.clientX-r.left)*mainCanvas.width/r.width,y:(e.clientY-r.top)*mainCanvas.height/r.height}}
+function isNearWatermark(cx,cy){
+  if(images.length===0)return false;const cfg=images[currentIndex].config;
+  const wx=cfg.wmPos.x*mainCanvas.width,wy=cfg.wmPos.y*mainCanvas.height;
+  ctx.save();ctx.font=`${cfg.fontSize}px "${cfg.font}"`;const m=ctx.measureText(cfg.text);ctx.restore();
+  return Math.abs(cx-wx)<m.width*.6&&Math.abs(cy-wy)<cfg.fontSize*.7
 }
-
-function isNearWatermark(cx, cy) {
-  if (images.length === 0) return false;
-  const cfg = images[currentIndex].config;
-  const wx = cfg.wmPos.x * mainCanvas.width;
-  const wy = cfg.wmPos.y * mainCanvas.height;
-  ctx.save();
-  ctx.font = `${cfg.fontSize}px "${cfg.font}"`;
-  const metrics = ctx.measureText(cfg.text);
-  ctx.restore();
-  const halfW = metrics.width * 0.6;
-  const halfH = cfg.fontSize * 0.7;
-  return Math.abs(cx - wx) < halfW && Math.abs(cy - wy) < halfH;
+function updateWmPosFromCanvas(cx,cy){
+  const pos={x:Math.max(0,Math.min(1,cx/mainCanvas.width)),y:Math.max(0,Math.min(1,cy/mainCanvas.height))};
+  if(syncPosition)images.forEach(img=>img.config.wmPos={...pos});else images[currentIndex].config.wmPos=pos;
+  document.getElementById('wmPosX').value=Math.round(pos.x*100);document.getElementById('wmPosY').value=Math.round(pos.y*100);
+  document.getElementById('posXLabel').textContent=Math.round(pos.x*100)+'%';document.getElementById('posYLabel').textContent=Math.round(pos.y*100)+'%'
 }
-
-function updateWmPosFromCanvas(canvasX, canvasY) {
-  const pos = {
-    x: Math.max(0, Math.min(1, canvasX / mainCanvas.width)),
-    y: Math.max(0, Math.min(1, canvasY / mainCanvas.height)),
-  };
-  if (syncPosition) {
-    images.forEach(img => img.config.wmPos = { ...pos });
-  } else {
-    images[currentIndex].config.wmPos = pos;
-  }
-  document.getElementById('wmPosX').value = Math.round(pos.x * 100);
-  document.getElementById('wmPosY').value = Math.round(pos.y * 100);
-  document.getElementById('posXLabel').textContent = Math.round(pos.x * 100) + '%';
-  document.getElementById('posYLabel').textContent = Math.round(pos.y * 100) + '%';
-}
-
-mainCanvas.addEventListener('mousedown', e => {
-  if (images.length === 0 || images[currentIndex].config.mode !== 'single') return;
-  const pos = getCanvasPos(e);
-  if (isNearWatermark(pos.x, pos.y)) {
-    dragging = true;
-    mainCanvas.style.cursor = 'grabbing';
-    e.preventDefault();
-  } else {
-    updateWmPosFromCanvas(pos.x, pos.y);
-    render();
-  }
+mainCanvas.addEventListener('mousedown',e=>{
+  if(images.length===0||images[currentIndex].config.mode!=='single')return;const p=getCanvasPos(e);
+  if(isNearWatermark(p.x,p.y)){dragging=true;mainCanvas.style.cursor='grabbing';e.preventDefault()}
+  else{updateWmPosFromCanvas(p.x,p.y);render()}
 });
-
-mainCanvas.addEventListener('mousemove', e => {
-  if (images.length === 0 || images[currentIndex].config.mode !== 'single') return;
-  const pos = getCanvasPos(e);
-  if (dragging) {
-    updateWmPosFromCanvas(pos.x, pos.y);
-    render();
-  } else {
-    mainCanvas.style.cursor = isNearWatermark(pos.x, pos.y) ? 'grab' : 'crosshair';
-  }
+mainCanvas.addEventListener('mousemove',e=>{
+  if(images.length===0||images[currentIndex].config.mode!=='single')return;const p=getCanvasPos(e);
+  if(dragging){updateWmPosFromCanvas(p.x,p.y);render()}else mainCanvas.style.cursor=isNearWatermark(p.x,p.y)?'grab':'crosshair'
 });
-
-mainCanvas.addEventListener('mouseup', () => {
-  if (dragging) { dragging = false; mainCanvas.style.cursor = 'crosshair'; render(); }
+mainCanvas.addEventListener('mouseup',()=>{if(dragging){dragging=false;mainCanvas.style.cursor='crosshair';render()}});
+mainCanvas.addEventListener('mouseleave',()=>{if(dragging){dragging=false;mainCanvas.style.cursor='crosshair';render()}});
+mainCanvas.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1||images.length===0||images[currentIndex].config.mode!=='single')return;
+  const p=getCanvasPos(e.touches[0]);if(isNearWatermark(p.x,p.y)){dragging=true;e.preventDefault()}else{updateWmPosFromCanvas(p.x,p.y);render()}
 });
-mainCanvas.addEventListener('mouseleave', () => {
-  if (dragging) { dragging = false; mainCanvas.style.cursor = 'crosshair'; render(); }
-});
-
-// Touch support
-mainCanvas.addEventListener('touchstart', e => {
-  if (images.length === 0 || images[currentIndex].config.mode !== 'single') return;
-  const pos = getCanvasPos(e.touches[0]);
-  if (isNearWatermark(pos.x, pos.y)) {
-    dragging = true;
-    e.preventDefault();
-  } else {
-    updateWmPosFromCanvas(pos.x, pos.y);
-    render();
-  }
-});
-mainCanvas.addEventListener('touchmove', e => {
-  if (!dragging) return;
-  e.preventDefault();
-  const pos = getCanvasPos(e.touches[0]);
-  updateWmPosFromCanvas(pos.x, pos.y);
-  render();
-}, { passive: false });
-mainCanvas.addEventListener('touchend', () => {
-  if (dragging) { dragging = false; render(); }
-});
-
-// ==================== Apply watermark to download canvas ====================
-function applyWatermarkToCanvas(dCtx, dw, dh, cfg, scaleFactor) {
-  const scaledFontSize = Math.round(cfg.fontSize * scaleFactor);
-  dCtx.font = `${scaledFontSize}px "${cfg.font}"`;
-  dCtx.fillStyle = cfg.color;
-  dCtx.textAlign = 'center';
-  dCtx.textBaseline = 'middle';
-  dCtx.globalAlpha = cfg.opacity;
-
-  if (cfg.mode === 'single') {
-    const x = cfg.wmPos.x * dw;
-    const y = cfg.wmPos.y * dh;
-    const angleRad = (cfg.angle * Math.PI) / 180;
-    dCtx.save();
-    dCtx.translate(x, y);
-    dCtx.rotate(angleRad);
-    dCtx.fillText(cfg.text, 0, 0);
-    dCtx.restore();
-  } else {
-    const cols = cfg.tileCols;
-    const rows = cfg.tileRows;
-    const angleRad = (cfg.tileAngle * Math.PI) / 180;
-    const cellW = dw / cols;
-    const cellH = dh / rows;
-    const offsetX = cfg.tileOffsetX * cellW;
-    const offsetY = cfg.tileOffsetY * cellH;
-    const extendCols = 2;
-    const extendRows = 2;
-    for (let row = -extendRows; row < rows + extendRows; row++) {
-      for (let col = -extendCols; col < cols + extendCols; col++) {
-        const cx = col * cellW + cellW / 2 + offsetX;
-        const cy = row * cellH + cellH / 2 + offsetY;
-        dCtx.save();
-        dCtx.translate(cx, cy);
-        dCtx.rotate(angleRad);
-        dCtx.fillText(cfg.text, 0, 0);
-        dCtx.restore();
-      }
-    }
-  }
-}
+mainCanvas.addEventListener('touchmove',e=>{if(!dragging||e.touches.length!==1)return;e.preventDefault();const p=getCanvasPos(e.touches[0]);updateWmPosFromCanvas(p.x,p.y);render()},{passive:false});
+mainCanvas.addEventListener('touchend',()=>{if(dragging){dragging=false;render()}});
 
 // ==================== Download ====================
-function downloadCurrent() {
-  if (images.length === 0) return;
-  downloadSingleImage(images[currentIndex]);
-  closeMobileSettings();
+function applyWatermarkToCanvas(dCtx,dw,dh,cfg,sf){
+  const fs=Math.round(cfg.fontSize*sf);dCtx.font=`${fs}px "${cfg.font}"`;dCtx.fillStyle=cfg.color;dCtx.textAlign='center';dCtx.textBaseline='middle';dCtx.globalAlpha=cfg.opacity;
+  if(cfg.mode==='single'){const x=cfg.wmPos.x*dw,y=cfg.wmPos.y*dh,r=(cfg.angle*Math.PI)/180;dCtx.save();dCtx.translate(x,y);dCtx.rotate(r);dCtx.fillText(cfg.text,0,0);dCtx.restore()}
+  else{const cols=cfg.tileCols,rows=cfg.tileRows,r=(cfg.tileAngle*Math.PI)/180,cw=dw/cols,ch=dh/rows,ox=cfg.tileOffsetX*cw,oy=cfg.tileOffsetY*ch;for(let row=-2;row<rows+2;row++)for(let col=-2;col<cols+2;col++){const cx=col*cw+cw/2+ox,cy=row*ch+ch/2+oy;dCtx.save();dCtx.translate(cx,cy);dCtx.rotate(r);dCtx.fillText(cfg.text,0,0);dCtx.restore()}}
 }
-
-function downloadSelected() {
-  const selected = images.filter(i => i.selected);
-  if (selected.length === 0) { showToast('没有选中的图片'); return; }
-  if (selected.length === 1) { downloadSingleImage(selected[0]); return; }
-  downloadAsZip(selected);
-  closeMobileSettings();
+function downloadCurrent(){if(images.length===0)return;downloadSingleImage(images[currentIndex]);closeMobileSettings()}
+function downloadSelected(){const sel=images.filter(i=>i.selected);if(sel.length===0){showToast('没有选中的图片');return}if(sel.length===1){downloadSingleImage(sel[0]);return}downloadAsZip(sel);closeMobileSettings()}
+function downloadAllZip(){if(images.length===0)return;downloadAsZip(images);closeMobileSettings()}
+function downloadSingleImage(item){
+  const cfg=item.config,dc=document.createElement('canvas');dc.width=item.img.naturalWidth;dc.height=item.img.naturalHeight;
+  const dCtx=dc.getContext('2d');dCtx.drawImage(item.img,0,0);
+  applyWatermarkToCanvas(dCtx,dc.width,dc.height,cfg,Math.min(dc.width/Math.max(mainCanvas.width,1),1));
+  dc.toBlob(b=>{const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=item.name.replace(/\.[^.]+$/,'')+'_watermarked.png';a.click();URL.revokeObjectURL(u);showToast('下载完成')},'image/png')
 }
-
-function downloadAllZip() {
-  if (images.length === 0) return;
-  downloadAsZip(images);
-  closeMobileSettings();
-}
-
-function downloadSingleImage(item) {
-  const cfg = item.config;
-  const downCanvas = document.createElement('canvas');
-  downCanvas.width = item.img.naturalWidth;
-  downCanvas.height = item.img.naturalHeight;
-  const dCtx = downCanvas.getContext('2d');
-  dCtx.drawImage(item.img, 0, 0);
-  const scaleFactor = Math.min(downCanvas.width / Math.max(mainCanvas.width, 1), 1);
-  applyWatermarkToCanvas(dCtx, downCanvas.width, downCanvas.height, cfg, scaleFactor);
-
-  downCanvas.toBlob(blob => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = item.name.replace(/\.[^.]+$/, '') + '_watermarked.png';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('下载完成');
-  }, 'image/png');
-}
-
-async function downloadAsZip(itemList) {
-  const overlay = document.getElementById('processingOverlay');
-  const msg = document.getElementById('processingMsg');
-  overlay.style.display = 'flex';
-  msg.textContent = `0 / ${itemList.length}`;
-
-  const zip = new JSZip();
-
-  for (let i = 0; i < itemList.length; i++) {
-    const item = itemList[i];
-    msg.textContent = `${i + 1} / ${itemList.length}`;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = item.img.naturalWidth;
-    canvas.height = item.img.naturalHeight;
-    const dCtx = canvas.getContext('2d');
-    dCtx.drawImage(item.img, 0, 0);
-    const scaleFactor = Math.min(canvas.width / Math.max(mainCanvas.width, 1), 1);
-    applyWatermarkToCanvas(dCtx, canvas.width, canvas.height, item.config, scaleFactor);
-
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    zip.file(item.name.replace(/\.[^.]+$/, '') + '_watermarked.png', blob);
+async function downloadAsZip(itemList){
+  const ov=document.getElementById('processingOverlay'),msg=document.getElementById('processingMsg');ov.style.display='flex';msg.textContent=`0 / ${itemList.length}`;
+  const zip=new JSZip();
+  for(let i=0;i<itemList.length;i++){const item=itemList[i];msg.textContent=`${i+1} / ${itemList.length}`;
+    const c=document.createElement('canvas');c.width=item.img.naturalWidth;c.height=item.img.naturalHeight;const dCtx=c.getContext('2d');dCtx.drawImage(item.img,0,0);
+    applyWatermarkToCanvas(dCtx,c.width,c.height,item.config,Math.min(c.width/Math.max(mainCanvas.width,1),1));
+    const blob=await new Promise(r=>c.toBlob(r,'image/png'));zip.file(item.name.replace(/\.[^.]+$/,'')+'_watermarked.png',blob)
   }
-
-  msg.textContent = '打包中...';
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(zipBlob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'watermarked_images.zip';
-  a.click();
-  URL.revokeObjectURL(url);
-  overlay.style.display = 'none';
-  showToast(`完成 — 共 ${itemList.length} 张`);
+  msg.textContent='打包中...';const zb=await zip.generateAsync({type:'blob'}),u=URL.createObjectURL(zb),a=document.createElement('a');a.href=u;a.download='watermarked_images.zip';a.click();URL.revokeObjectURL(u);ov.style.display='none';showToast(`完成 — 共 ${itemList.length} 张`)
 }
 
-// ==================== Mobile settings panel ====================
-function toggleMobileSettings() {
-  const open = controlsPanel.classList.toggle('open');
-  controlsBackdrop.classList.toggle('open', open);
-  document.body.style.overflow = open ? 'hidden' : '';
-}
-
-function closeMobileSettings() {
-  controlsPanel.classList.remove('open');
-  controlsBackdrop.classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeMobileSettings();
-});
+// ==================== Mobile settings ====================
+function toggleMobileSettings(){const o=controlsPanel.classList.toggle('open');controlsBackdrop.classList.toggle('open',o);document.body.style.overflow=o?'hidden':''}
+function closeMobileSettings(){controlsPanel.classList.remove('open');controlsBackdrop.classList.remove('open');document.body.style.overflow=''}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileSettings()});
 
 // ==================== Toast ====================
-function showToast(msg) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.classList.add('show');
-  clearTimeout(toast._timeout);
-  toast._timeout = setTimeout(() => toast.classList.remove('show'), 2000);
-}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._timeout);t._timeout=setTimeout(()=>t.classList.remove('show'),2000)}
 
 // ==================== Init ====================
-window._mode = 'single';
-loadConfigToPanel(defaultConfig());
+window._mode='single';loadConfigToPanel(defaultConfig());
 </script>
-
 </body>
 </html>
