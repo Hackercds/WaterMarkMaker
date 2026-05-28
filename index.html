@@ -540,7 +540,8 @@ input[type="file"]{display:none}
   .fg input[type="range"]::-webkit-slider-thumb{width:24px;height:24px}
   .btn,.btn-dl,.btn-ol{min-height:40px}
   .mtab{padding:9px}
-  .color-quick{display:flex!important;margin-bottom:4px} /* show quick swatches on touch devices */
+  .color-quick{display:flex!important;margin-bottom:4px}
+  #wmColor{width:36px!important;height:32px!important}
 }
 </style>
 </head>
@@ -897,14 +898,16 @@ function loadCfg(cfg){
   if(!syncZoom){zoom=cfg.zoom||1;canvasWrap.style.transform=`scale(${zoom})`;$('zLabel').textContent=Math.round(zoom*100)+'%'}
 }
 function saveCfg(){if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);render()}
-let nativeColorFailed=false;
+let nativeColorFailed=false,nativeColorTimer=0;
 $('wmColor').addEventListener('click',e=>{
-  // On touch devices, native color picker often fails — show popup fallback
-  if(!matchMedia('(hover:hover)').matches||nativeColorFailed){
-    e.preventDefault();toggleColorPicker();
-    if(!nativeColorFailed){nativeColorFailed=true;showToast('您的设备不支持原生取色器，已使用备选调色盘')}
-  }
+  if(nativeColorFailed){e.preventDefault();toggleColorPicker();return}
+  // Wait 400ms — if native picker hasn't fired change, it didn't open
+  nativeColorTimer=setTimeout(()=>{
+    nativeColorFailed=true;toggleColorPicker();
+    showToast('您的设备不支持原生取色器，已使用备选调色盘');
+  },400)
 });
+$('wmColor').addEventListener('change',()=>{clearTimeout(nativeColorTimer)});
 function toggleColorPicker(){buildPalette();$('colorPopup').classList.toggle('open')}
 document.addEventListener('click',e=>{if(!e.target.closest('.color-popup')&&!e.target.closest('.ac-btn')&&e.target.id!=='wmColor')$('colorPopup').classList.remove('open')});
 
