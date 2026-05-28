@@ -639,9 +639,10 @@ input[type="file"]{display:none}
           <div class="fg"><input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="saveCfg()"></div>
           <div class="af-bar">
             <label><input type="checkbox" id="autoFilename"> 文件名作为水印</label>
-            <div style="display:flex;gap:2px">
+            <div style="display:flex;gap:2px;align-items:center">
               <button class="af-mode" id="afEach" onclick="setAfMode('each')" title="每张图用各自的文件名">各自</button>
               <button class="af-mode" id="afAll" onclick="setAfMode('all')" title="所有图统一用当前文件名">统一</button>
+              <span class="af-hint" id="afHint"></span>
             </div>
           </div>
           <div class="fr" style="margin-top:7px">
