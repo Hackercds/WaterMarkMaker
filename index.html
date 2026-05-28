@@ -955,17 +955,26 @@ function onHexInput(){
 
 function applyToAll(type){
   if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);const s=imgs[idx].cfg;
-  imgs.forEach((it,i)=>{if(i===idx)return;if(type==='text'){if(!autoFn||afMode==='all')it.cfg.text=s.text;it.cfg.font=s.font;it.cfg.fontSize=s.fontSize;it.cfg.color=s.color;it.cfg.opacity=s.opacity}
-    else if(type==='single')it.cfg.angle=s.angle;else if(type==='tile'){it.cfg.tileCols=s.tileCols;it.cfg.tileRows=s.tileRows;it.cfg.tileAngle=s.tileAngle;it.cfg.tileOffsetX=s.tileOffsetX;it.cfg.tileOffsetY=s.tileOffsetY}
-    else if(type==='mode'){it.cfg.mode=s.mode;loadCfg(imgs[idx].cfg)}})
+  imgs.forEach((it,i)=>{
+    if(i===idx)return;
+    if(type==='text'){
+      if(autoFn&&afMode==='each'){} // skip text — each image keeps its own filename
+      else it.cfg.text=s.text;
+      it.cfg.font=s.font;it.cfg.fontSize=s.fontSize;
+      // color & opacity are per-image; don't overwrite
+    }
+    else if(type==='single')it.cfg.angle=s.angle;
+    else if(type==='tile'){it.cfg.tileCols=s.tileCols;it.cfg.tileRows=s.tileRows;it.cfg.tileAngle=s.tileAngle;it.cfg.tileOffsetX=s.tileOffsetX;it.cfg.tileOffsetY=s.tileOffsetY}
+    else if(type==='mode'){it.cfg.mode=s.mode;loadCfg(imgs[idx].cfg)}
+  })
   showToast('已应用到全部');render()
 }
 function applyAllSettings(){
   if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);const s=imgs[idx].cfg;
   imgs.forEach((it,i)=>{
     if(i===idx)return;
-    // Preserve per-image smart settings
-    const keep={};
+    // Preserve per-image content: text (if auto), color, opacity
+    const keep={color:it.cfg.color,opacity:it.cfg.opacity};
     if(autoFn&&afMode==='each')keep.text=it.cfg.text;
     it.cfg={...s,wmPos:{...s.wmPos}};
     Object.assign(it.cfg,keep);
