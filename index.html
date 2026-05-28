@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>自定义水印工具</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -12,32 +12,49 @@ body {
   background: #1a1a2e;
   color: #e0e0e0;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
 }
+
+/* ===== Header ===== */
 .header {
   background: #16213e;
-  padding: 10px 20px;
+  padding: 8px 16px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid #0f3460;
+  z-index: 10;
 }
-.header h1 { font-size: 18px; color: #e94560; }
-.header .actions { display: flex; gap: 8px; }
+.header h1 { font-size: 16px; color: #e94560; }
+.header .actions { display: flex; gap: 6px; }
+.header .actions .btn { padding: 6px 12px; font-size: 12px; }
+.header .mobile-toggle {
+  display: none;
+  width: 36px; height: 36px;
+  background: #0f3460; border: none; border-radius: 6px;
+  color: #e0e0e0; font-size: 18px; cursor: pointer;
+  align-items: center; justify-content: center;
+}
+
+/* ===== Container ===== */
 .container {
   display: flex;
-  height: calc(100vh - 53px);
+  height: calc(100vh - 47px);
+  height: calc(100dvh - 47px);
 }
-/* Preview area */
+
+/* ===== Preview Area ===== */
 .preview {
   flex: 1;
   display: flex; flex-direction: column;
   background: #16213e;
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 .preview-canvas-area {
   flex: 1;
   display: flex; align-items: center; justify-content: center;
-  padding: 20px;
+  padding: 16px;
   overflow: auto;
 }
 .preview .drop-zone {
@@ -48,6 +65,7 @@ body {
   color: #6c7a8d;
   transition: all 0.3s;
   cursor: pointer;
+  max-width: 400px;
 }
 .preview .drop-zone:hover,
 .preview .drop-zone.drag-over { border-color: #e94560; color: #e94560; }
@@ -63,35 +81,47 @@ body {
 .preview .canvas-wrapper { position: relative; display: inline-block; }
 .preview input[type="file"] { display: none; }
 
-/* Thumbnail strip */
+/* ===== Thumbnail Strip ===== */
 .thumbnail-strip {
-  display: flex; gap: 6px;
-  padding: 8px 12px;
+  display: flex; gap: 6px; align-items: center;
+  padding: 8px 10px;
   background: #12122a;
   border-top: 1px solid #0f3460;
-  overflow-x: auto;
-  min-height: 74px;
-  align-items: center;
+  overflow-x: auto; overflow-y: hidden;
+  min-height: 66px;
+  flex-shrink: 0;
 }
-.thumbnail-strip::-webkit-scrollbar { height: 4px; }
+.thumbnail-strip::-webkit-scrollbar { height: 3px; }
 .thumbnail-strip::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 2px; }
+.thumbnail-strip .add-btn {
+  width: 48px; height: 48px; min-width: 48px;
+  border-radius: 6px; border: 2px dashed #0f3460;
+  background: transparent; color: #6c7a8d;
+  font-size: 22px; cursor: pointer;
+  transition: all 0.2s; line-height: 1;
+}
+.thumbnail-strip .add-btn:hover { border-color: #e94560; color: #e94560; }
+.thumbnail-strip .count-badge {
+  font-size: 11px; color: #6c7a8d; white-space: nowrap;
+  padding: 0 4px;
+}
 .thumb {
   position: relative;
-  width: 56px; height: 56px;
+  width: 48px; height: 48px; min-width: 48px;
   border-radius: 6px; overflow: hidden;
-  cursor: pointer;
+  cursor: pointer; flex-shrink: 0;
   border: 2px solid transparent;
-  flex-shrink: 0;
   transition: border-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 .thumb:hover { border-color: #4a6a9a; }
 .thumb.active { border-color: #e94560; }
-.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumb .thumb-index {
-  position: absolute; top: 2px; left: 4px;
+  position: absolute; top: 2px; left: 3px;
   font-size: 10px; color: #fff;
-  background: rgba(0,0,0,0.6); border-radius: 3px;
-  padding: 0 4px; line-height: 16px;
+  background: rgba(0,0,0,0.65); border-radius: 3px;
+  padding: 0 4px; line-height: 15px;
 }
 .thumb .thumb-remove {
   position: absolute; top: 2px; right: 2px;
@@ -99,84 +129,86 @@ body {
   border-radius: 50%; background: rgba(233,69,96,0.9);
   color: #fff; border: none; cursor: pointer;
   font-size: 11px; line-height: 16px; text-align: center;
-  display: none;
+  opacity: 0; transition: opacity 0.15s;
 }
-.thumb:hover .thumb-remove { display: block; }
+.thumb:hover .thumb-remove,
+.thumb:active .thumb-remove { opacity: 1; }
 .thumb .thumb-check {
   position: absolute; bottom: 2px; right: 2px;
-  width: 18px; height: 18px;
-  accent-color: #e94560;
-  cursor: pointer;
-  display: none;
+  width: 17px; height: 17px;
+  accent-color: #e94560; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s;
 }
 .thumb:hover .thumb-check,
-.thumb.show-check .thumb-check { display: block; }
-.thumbnail-strip .add-btn {
-  width: 56px; height: 56px;
-  border-radius: 6px;
-  border: 2px dashed #0f3460;
-  background: transparent;
-  color: #6c7a8d;
-  font-size: 24px; cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-.thumbnail-strip .add-btn:hover { border-color: #e94560; color: #e94560; }
-.thumbnail-strip .count-badge {
-  font-size: 11px; color: #6c7a8d; margin-left: 6px; flex-shrink: 0;
-}
+.thumb:active .thumb-check,
+.thumb.show-check .thumb-check { opacity: 1; }
 
-/* Controls panel */
+/* ===== Controls Panel ===== */
 .controls {
-  width: 340px;
+  width: 340px; min-width: 340px;
   background: #1a1a2e;
   border-left: 1px solid #0f3460;
-  padding: 16px;
-  overflow-y: auto;
-  display: flex; flex-direction: column; gap: 14px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.3s, width 0.3s, min-width 0.3s;
 }
+.controls-scroll {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.controls-scroll::-webkit-scrollbar { width: 4px; }
+.controls-scroll::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 2px; }
 .controls .section {
   background: #16213e;
   border-radius: 8px;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid #0f3460;
 }
 .controls .section-title {
-  font-size: 13px;
+  font-size: 12px;
   color: #e94560;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex; align-items: center; justify-content: space-between;
 }
+.section-title .section-actions { display: flex; gap: 4px; }
+.section-title .section-actions button {
+  font-size: 10px; padding: 2px 6px; border-radius: 3px;
+  border: 1px solid #e94560; background: transparent; color: #e94560;
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.15s;
+}
+.section-title .section-actions button:hover { background: #e94560; color: #fff; }
 
 /* Mode tabs */
 .mode-tabs { display: flex; gap: 4px; }
 .mode-tab {
-  flex: 1;
-  padding: 8px;
+  flex: 1; padding: 7px 4px;
   background: #0f3460;
   border: 1px solid #0f3460;
   color: #6c7a8d;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
-  text-align: center;
+  font-size: 12px; text-align: center;
   transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 .mode-tab.active { background: #e94560; color: #fff; border-color: #e94560; }
 .mode-tab:hover:not(.active) { color: #e0e0e0; }
 
 /* Form controls */
-.form-group { margin-bottom: 10px; }
+.form-group { margin-bottom: 8px; }
 .form-group:last-child { margin-bottom: 0; }
 .form-group label {
-  display: block; font-size: 12px; color: #8a9bb5; margin-bottom: 4px;
+  display: block; font-size: 11px; color: #8a9bb5; margin-bottom: 3px;
 }
 .form-group input[type="text"],
 .form-group select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 7px 8px;
   background: #0f3460;
   border: 1px solid #1a4a7a;
   border-radius: 6px;
@@ -189,7 +221,7 @@ body {
 .form-group select:focus { border-color: #e94560; }
 .form-group input[type="range"] {
   width: 100%;
-  -webkit-appearance: none;
+  -webkit-appearance: none; appearance: none;
   height: 6px;
   border-radius: 3px;
   background: #0f3460;
@@ -197,57 +229,54 @@ body {
 }
 .form-group input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 18px; height: 18px;
+  width: 20px; height: 20px;
   border-radius: 50%;
   background: #e94560;
   cursor: pointer;
 }
 .form-group input[type="color"] {
-  width: 36px; height: 30px; border: none; border-radius: 4px;
-  cursor: pointer; background: transparent;
+  width: 34px; height: 28px; border: 1px solid #1a4a7a; border-radius: 4px;
+  cursor: pointer; background: transparent; padding: 2px;
 }
 .form-row { display: flex; gap: 8px; align-items: end; }
 .form-row .form-group { flex: 1; }
-.form-group .value-label { font-size: 11px; color: #e94560; float: right; }
+.form-group .value-label { font-size: 10px; color: #e94560; float: right; }
+.select-bar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 12px; color: #8a9bb5;
+}
+.select-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.select-bar input[type="checkbox"] { accent-color: #e94560; width: 15px; height: 15px; cursor: pointer; }
+.hint-text { font-size: 11px; color: #6c7a8d; margin-top: 6px; line-height: 1.5; }
 
+/* Buttons */
 .btn {
-  padding: 10px 16px;
+  padding: 8px 14px;
   border: none; border-radius: 6px;
   font-size: 13px; font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
+  cursor: pointer; transition: all 0.2s;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
 }
 .btn-primary { background: #e94560; color: #fff; }
 .btn-primary:hover { background: #d63852; }
 .btn-secondary { background: #0f3460; color: #e0e0e0; }
 .btn-secondary:hover { background: #1a4a7a; }
 .btn-download {
-  width: 100%; padding: 12px;
+  flex: 1; padding: 11px 8px;
   background: #e94560; color: #fff;
-  font-size: 15px;
+  font-size: 13px; font-weight: 600;
 }
 .btn-download:hover { background: #d63852; }
 .btn-download:disabled { background: #2a2a3e; color: #555; cursor: not-allowed; }
 .btn-outline {
+  flex: 1; padding: 11px 8px;
   background: transparent; border: 1px solid #e94560; color: #e94560;
+  font-size: 13px; font-weight: 600;
 }
 .btn-outline:hover { background: rgba(233,69,96,0.15); }
-
-/* Download buttons group */
-.download-group { display: flex; gap: 8px; }
-.download-group .btn-download { flex: 1; }
-.download-group .btn-outline {
-  flex: 0; padding: 12px 16px;
-}
-
-/* Batch select bar */
-.select-bar {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; color: #8a9bb5;
-}
-.select-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
-.select-bar input[type="checkbox"] { accent-color: #e94560; }
+.btn-outline:disabled { border-color: #3a3a4e; color: #555; cursor: not-allowed; }
+.download-group { display: flex; gap: 6px; }
 
 /* Processing overlay */
 .processing-overlay {
@@ -271,12 +300,78 @@ body {
 .toast {
   position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
   background: #e94560; color: #fff;
-  padding: 12px 28px; border-radius: 8px;
+  padding: 10px 24px; border-radius: 8px;
   font-size: 14px; z-index: 1001;
   opacity: 0; transition: opacity 0.3s;
   pointer-events: none;
 }
 .toast.show { opacity: 1; }
+
+/* Image name indicator on canvas */
+.image-name-tag {
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(0,0,0,0.55); color: #ccc;
+  font-size: 11px; padding: 2px 7px; border-radius: 4px;
+  pointer-events: none;
+}
+
+/* ===== Mobile & Tablet ===== */
+@media (max-width: 768px) {
+  .header h1 { font-size: 14px; }
+  .header .mobile-toggle { display: flex; }
+  .header .actions .btn.hide-mobile { display: none; }
+  .container { flex-direction: column; position: relative; }
+  .preview { flex: 1; min-height: 300px; }
+  .preview-canvas-area { padding: 10px; }
+  .preview .drop-zone { padding: 40px 20px; max-width: 280px; }
+  .preview .drop-zone .icon { font-size: 36px; }
+  .preview .drop-zone p { font-size: 12px; }
+  .thumbnail-strip { min-height: 56px; padding: 6px 8px; gap: 4px; }
+  .thumb, .thumbnail-strip .add-btn { width: 40px; height: 40px; min-width: 40px; }
+
+  .controls {
+    position: fixed; top: 0; left: 0; width: 100%; min-width: 0;
+    height: 100%; height: 100dvh;
+    z-index: 50;
+    transform: translateY(100%);
+    border-left: none;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
+  }
+  .controls.open { transform: translateY(0); }
+  .controls-backdrop {
+    display: none; position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 49;
+  }
+  .controls-backdrop.open { display: block; }
+
+  /* Mobile: pull handle */
+  .controls-handle {
+    display: block;
+    width: 32px; height: 4px;
+    background: #0f3460; border-radius: 2px;
+    margin: 0 auto 8px;
+  }
+  /* Hide handle on desktop */
+  .controls-handle { display: none; }
+}
+
+@media (min-width: 769px) {
+  .controls-backdrop { display: none !important; }
+  .controls-handle { display: none; }
+}
+
+@media (max-width: 768px) {
+  .controls-handle { display: block; }
+}
+
+/* Touch-friendly sliders */
+@media (hover: none) and (pointer: coarse) {
+  .form-group input[type="range"] { height: 8px; }
+  .form-group input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .btn, .btn-download, .btn-outline { min-height: 40px; }
+}
 </style>
 </head>
 <body>
@@ -284,8 +379,9 @@ body {
 <div class="header">
   <h1>自定义水印工具</h1>
   <div class="actions">
-    <button class="btn btn-secondary" onclick="resetAll()">清除全部</button>
+    <button class="btn btn-secondary hide-mobile" onclick="resetAll()">清除全部</button>
     <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">添加图片</button>
+    <button class="btn btn-secondary mobile-toggle" id="mobileSettingsBtn" onclick="toggleMobileSettings()" title="设置">&#9881;</button>
   </div>
 </div>
 
@@ -294,12 +390,13 @@ body {
   <div class="preview" id="previewArea">
     <div class="preview-canvas-area" id="canvasArea">
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <div class="icon">🖼️</div>
+        <div class="icon">&#x1F5BC;</div>
         <p>拖拽图片到此处<br>或点击选择文件（支持多选）<br>或 Ctrl+V 粘贴</p>
         <input type="file" id="fileInput" accept="image/*" multiple>
       </div>
       <div class="canvas-wrapper" id="canvasWrapper" style="display:none;">
         <canvas id="mainCanvas"></canvas>
+        <div class="image-name-tag" id="imageNameTag"></div>
       </div>
     </div>
     <!-- Thumbnail strip -->
@@ -309,109 +406,143 @@ body {
     </div>
   </div>
 
+  <!-- Controls backdrop (mobile) -->
+  <div class="controls-backdrop" id="controlsBackdrop" onclick="closeMobileSettings()"></div>
+
   <!-- Controls -->
   <div class="controls" id="controlsPanel">
-    <div class="section">
-      <div class="section-title">水印模式</div>
-      <div class="mode-tabs">
-        <button class="mode-tab active" data-mode="single" onclick="switchMode('single')">单个水印</button>
-        <button class="mode-tab" data-mode="tile" onclick="switchMode('tile')">斜填充 / 平铺</button>
+    <div class="controls-handle"></div>
+    <div class="controls-scroll">
+      <!-- Watermark mode -->
+      <div class="section">
+        <div class="section-title">水印模式
+          <div class="section-actions">
+            <button onclick="applyToAll('mode')" title="将此模式应用到所有图片">应用全部</button>
+          </div>
+        </div>
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="single" onclick="switchMode('single')">单个水印</button>
+          <button class="mode-tab" data-mode="tile" onclick="switchMode('tile')">斜填充 / 平铺</button>
+        </div>
       </div>
-    </div>
 
-    <div class="section">
-      <div class="section-title">水印文字</div>
-      <div class="form-group">
-        <input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="render()">
+      <!-- Text settings -->
+      <div class="section">
+        <div class="section-title">水印文字
+          <div class="section-actions">
+            <button onclick="applyToAll('text')" title="将文字设置应用到所有图片">应用全部</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="saveConfigAndRender()">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>字体</label>
+            <select id="wmFont" onchange="saveConfigAndRender()">
+              <option value="Arial">Arial</option>
+              <option value="Microsoft YaHei" selected>微软雅黑</option>
+              <option value="SimHei">黑体</option>
+              <option value="SimSun">宋体</option>
+              <option value="KaiTi">楷体</option>
+              <option value="sans-serif">Sans-serif</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>字号 <span class="value-label" id="fontSizeLabel">32px</span></label>
+            <input type="range" id="wmFontSize" min="12" max="120" value="32" oninput="onFontSizeChange()">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>颜色</label>
+            <input type="color" id="wmColor" value="#ffffff" onchange="saveConfigAndRender()">
+          </div>
+          <div class="form-group">
+            <label>不透明度 <span class="value-label" id="opacityLabel">0.30</span></label>
+            <input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOpacityChange()">
+          </div>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>字体</label>
-          <select id="wmFont" onchange="render()">
-            <option value="Arial">Arial</option>
-            <option value="Microsoft YaHei" selected>微软雅黑</option>
-            <option value="SimHei">黑体</option>
-            <option value="SimSun">宋体</option>
-            <option value="KaiTi">楷体</option>
-            <option value="sans-serif">Sans-serif</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>字号 <span class="value-label" id="fontSizeLabel">32px</span></label>
-          <input type="range" id="wmFontSize" min="12" max="120" value="32" oninput="onFontSizeChange()">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>颜色</label>
-          <input type="color" id="wmColor" value="#ffffff" onchange="render()">
-        </div>
-        <div class="form-group">
-          <label>不透明度 <span class="value-label" id="opacityLabel">0.3</span></label>
-          <input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOpacityChange()">
-        </div>
-      </div>
-    </div>
 
-    <!-- Single watermark controls -->
-    <div class="section" id="singleControls">
-      <div class="section-title">单个水印设置</div>
-      <div class="form-group">
-        <label>旋转角度 <span class="value-label" id="angleLabel">-30°</span></label>
-        <input type="range" id="wmAngle" min="-180" max="180" value="-30" oninput="onAngleChange()">
+      <!-- Single mode -->
+      <div class="section" id="singleControls">
+        <div class="section-title">单个水印设置
+          <div class="section-actions">
+            <button onclick="applyToAll('single')" title="将单个水印设置应用到所有图片">应用全部</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>旋转角度 <span class="value-label" id="angleLabel">-30°</span></label>
+          <input type="range" id="wmAngle" min="-180" max="180" value="-30" oninput="onAngleChange()">
+        </div>
+        <div class="form-row" style="margin-bottom:6px;">
+          <div class="form-group">
+            <label>水平位置 <span class="value-label" id="posXLabel">50%</span></label>
+            <input type="range" id="wmPosX" min="0" max="100" value="50" oninput="onPosXChange()">
+          </div>
+          <div class="form-group">
+            <label>垂直位置 <span class="value-label" id="posYLabel">50%</span></label>
+            <input type="range" id="wmPosY" min="0" max="100" value="50" oninput="onPosYChange()">
+          </div>
+        </div>
+        <p class="hint-text">提示：在图片上拖动水印调整位置，或点击任意位置移动水印</p>
+        <div class="select-bar" style="margin-top:6px;">
+          <label><input type="checkbox" id="syncPos"> 所有图片统一水印位置</label>
+        </div>
       </div>
-      <p style="font-size:11px;color:#6c7a8d;margin-top:6px;">
-        提示：在图片上拖动水印调整位置，或点击任意位置移动水印
-      </p>
-      <div class="select-bar" style="margin-top:8px;">
-        <label><input type="checkbox" id="syncPos" onchange="onSyncPosChange()"> 所有图片统一水印位置</label>
-      </div>
-    </div>
 
-    <!-- Tile controls -->
-    <div class="section" id="tileControls" style="display:none;">
-      <div class="section-title">平铺设置</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>列数 <span class="value-label" id="colsLabel">4</span></label>
-          <input type="range" id="tileCols" min="1" max="12" value="4" oninput="onTileChange()">
+      <!-- Tile mode -->
+      <div class="section" id="tileControls" style="display:none;">
+        <div class="section-title">平铺设置
+          <div class="section-actions">
+            <button onclick="applyToAll('tile')" title="将平铺设置应用到所有图片">应用全部</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>列数 <span class="value-label" id="colsLabel">4</span></label>
+            <input type="range" id="tileCols" min="1" max="12" value="4" oninput="onTileChange()">
+          </div>
+          <div class="form-group">
+            <label>行数 <span class="value-label" id="rowsLabel">3</span></label>
+            <input type="range" id="tileRows" min="1" max="10" value="3" oninput="onTileChange()">
+          </div>
         </div>
         <div class="form-group">
-          <label>行数 <span class="value-label" id="rowsLabel">3</span></label>
-          <input type="range" id="tileRows" min="1" max="10" value="3" oninput="onTileChange()">
+          <label>旋转角度 <span class="value-label" id="tileAngleLabel">-30°</span></label>
+          <input type="range" id="tileAngle" min="-180" max="180" value="-30" oninput="onTileAngleChange()">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>水平偏移 <span class="value-label" id="offsetXLabel">0%</span></label>
+            <input type="range" id="tileOffsetX" min="-50" max="50" value="0" oninput="onTileOffsetChange()">
+          </div>
+          <div class="form-group">
+            <label>垂直偏移 <span class="value-label" id="offsetYLabel">0%</span></label>
+            <input type="range" id="tileOffsetY" min="-50" max="50" value="0" oninput="onTileOffsetChange()">
+          </div>
         </div>
       </div>
-      <div class="form-group">
-        <label>旋转角度 <span class="value-label" id="tileAngleLabel">-30°</span></label>
-        <input type="range" id="tileAngle" min="-180" max="180" value="-30" oninput="onTileAngleChange()">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>水平偏移 <span class="value-label" id="offsetXLabel">0%</span></label>
-          <input type="range" id="tileOffsetX" min="-50" max="50" value="0" oninput="onTileOffsetChange()">
-        </div>
-        <div class="form-group">
-          <label>垂直偏移 <span class="value-label" id="offsetYLabel">0%</span></label>
-          <input type="range" id="tileOffsetY" min="-50" max="50" value="0" oninput="onTileOffsetChange()">
-        </div>
-      </div>
-    </div>
 
-    <div class="select-bar">
-      <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> 全选 (<span id="selectCount">0</span>张)</label>
-    </div>
+      <!-- Selection & Download -->
+      <div class="select-bar">
+        <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> 全选</label>
+        <span style="flex:1;"></span>
+        <span id="selectCount">0</span>/<span id="totalCount">0</span> 张
+      </div>
 
-    <div class="download-group">
-      <button class="btn btn-download" id="btnDownloadCurrent" disabled onclick="downloadCurrent()">
-        下载当前图
+      <div class="download-group">
+        <button class="btn btn-download" id="btnDownloadCurrent" disabled onclick="downloadCurrent()">下载当前图</button>
+        <button class="btn btn-download" id="btnDownloadSelected" disabled onclick="downloadSelected()">下载选中</button>
+      </div>
+      <button class="btn btn-outline" id="btnDownloadAll" disabled onclick="downloadAllZip()" style="width:100%;">
+        打包下载全部 (ZIP)
       </button>
-      <button class="btn btn-download" id="btnDownloadSelected" disabled onclick="downloadSelected()">
-        下载选中
+      <button class="btn btn-secondary" id="btnClear" disabled onclick="resetAll()" style="width:100%;">
+        清除全部图片
       </button>
     </div>
-    <button class="btn btn-outline" id="btnDownloadAll" disabled onclick="downloadAllZip()" style="width:100%;">
-      打包下载全部 (ZIP)
-    </button>
   </div>
 </div>
 
@@ -424,13 +555,38 @@ body {
 <div class="toast" id="toast"></div>
 
 <script>
+// ==================== Default config ====================
+function defaultConfig() {
+  return {
+    mode: 'single',
+    text: '我的水印',
+    font: 'Microsoft YaHei',
+    fontSize: 32,
+    color: '#ffffff',
+    opacity: 0.3,
+    // single mode
+    wmPos: { x: 0.5, y: 0.5 },
+    angle: -30,
+    // tile mode
+    tileCols: 4,
+    tileRows: 3,
+    tileAngle: -30,
+    tileOffsetX: 0,
+    tileOffsetY: 0,
+  };
+}
+
 // ==================== State ====================
-// images: [{ img: HTMLImageElement, name: string, wmPos: {x, y}, selected: boolean }]
+// images: [{ img, name, selected, config: {...} }]
 let images = [];
 let currentIndex = 0;
-let mode = 'single';
-let syncPosition = false; // when true, all images share the same wmPos
+let syncPosition = false;
 let dragging = false;
+
+function getCurrentConfig() {
+  if (images.length === 0) return defaultConfig();
+  return images[currentIndex].config;
+}
 
 // ==================== DOM refs ====================
 const dropZone = document.getElementById('dropZone');
@@ -440,6 +596,8 @@ const mainCanvas = document.getElementById('mainCanvas');
 const ctx = mainCanvas.getContext('2d');
 const fileInput = document.getElementById('fileInput');
 const thumbnailStrip = document.getElementById('thumbnailStrip');
+const controlsPanel = document.getElementById('controlsPanel');
+const controlsBackdrop = document.getElementById('controlsBackdrop');
 
 // ==================== Image loading ====================
 fileInput.addEventListener('change', e => {
@@ -449,49 +607,61 @@ fileInput.addEventListener('change', e => {
   }
 });
 
-// Drag & drop
+function handleDropFiles(files) {
+  const imgFiles = files.filter(f => f.type.startsWith('image/'));
+  if (imgFiles.length) loadFiles(imgFiles);
+}
+
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault();
   dropZone.classList.remove('drag-over');
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-  if (files.length) loadFiles(files);
+  handleDropFiles(Array.from(e.dataTransfer.files));
 });
 
-// Paste from clipboard
+// Also allow drop on the whole preview area
+canvasArea.addEventListener('dragover', e => { e.preventDefault(); });
+canvasArea.addEventListener('drop', e => {
+  e.preventDefault();
+  handleDropFiles(Array.from(e.dataTransfer.files));
+});
+
 document.addEventListener('paste', e => {
-  const items = e.clipboardData.items;
   const files = [];
-  for (const item of items) {
-    if (item.type.startsWith('image/')) {
-      files.push(item.getAsFile());
-    }
+  for (const item of e.clipboardData.items) {
+    if (item.type.startsWith('image/')) files.push(item.getAsFile());
   }
   if (files.length) loadFiles(files);
 });
 
 function loadFiles(files) {
   let loaded = 0;
+  const startIdx = images.length;
   const total = files.length;
+  const newImages = [];
 
   files.forEach((file, i) => {
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
       img.onload = () => {
-        images.push({
+        newImages.push({
+          _order: startIdx + i,
           img: img,
-          name: file.name || `image_${images.length + 1}.png`,
-          wmPos: { x: 0.5, y: 0.5 },
-          selected: true
+          name: file.name || `image_${startIdx + i + 1}.png`,
+          selected: true,
+          config: { ...defaultConfig(), wmPos: { x: 0.5, y: 0.5 } }
         });
         loaded++;
         if (loaded === total) {
+          // Sort by original order and add
+          newImages.sort((a, b) => a._order - b._order);
+          newImages.forEach(n => { delete n._order; images.push(n); });
           onImagesChanged();
-          // select the first of the new batch
-          currentIndex = images.length - total;
+          currentIndex = startIdx;
           switchToImage(currentIndex);
+          closeMobileSettings();
         }
       };
       img.src = e.target.result;
@@ -505,107 +675,210 @@ function onImagesChanged() {
   dropZone.style.display = hasImages ? 'none' : '';
   canvasWrapper.style.display = hasImages ? 'inline-block' : 'none';
   thumbnailStrip.style.display = hasImages ? 'flex' : 'none';
+  document.getElementById('btnDownloadCurrent').disabled = !hasImages;
+  document.getElementById('btnDownloadSelected').disabled = !hasImages;
+  document.getElementById('btnDownloadAll').disabled = !hasImages;
+  document.getElementById('btnClear').disabled = !hasImages;
 
-  if (hasImages) {
-    document.getElementById('btnDownloadCurrent').disabled = false;
-    document.getElementById('btnDownloadSelected').disabled = false;
-    document.getElementById('btnDownloadAll').disabled = false;
-  } else {
-    document.getElementById('btnDownloadCurrent').disabled = true;
-    document.getElementById('btnDownloadSelected').disabled = true;
-    document.getElementById('btnDownloadAll').disabled = true;
-    mainCanvas.width = 0;
-    mainCanvas.height = 0;
+  if (!hasImages) {
+    mainCanvas.width = 0; mainCanvas.height = 0;
     currentIndex = 0;
+    document.getElementById('imageNameTag').textContent = '';
   }
 
   updateThumbnails();
-  updateSelectCount();
+  updateCounts();
 }
 
 function updateThumbnails() {
-  // Clear existing thumbs (keep add button and badge)
   const existing = thumbnailStrip.querySelectorAll('.thumb');
   existing.forEach(t => t.remove());
 
   images.forEach((item, i) => {
     const div = document.createElement('div');
-    div.className = 'thumb' + (i === currentIndex ? ' active' : '');
-    div.innerHTML = `<img src="${item.img.src}" alt=""><span class="thumb-index">${i + 1}</span>`
+    div.className = 'thumb' + (i === currentIndex ? ' active' : '') + (item.selected ? ' show-check' : '');
+    div.innerHTML =
+      `<img src="${item.img.src}" alt="">`
+      + `<span class="thumb-index">${i + 1}</span>`
       + `<button class="thumb-remove" title="删除">&times;</button>`
-      + `<input type="checkbox" class="thumb-check" ${item.selected ? 'checked' : ''} title="选中/取消">`;
-    // Insert before add button
+      + `<input type="checkbox" class="thumb-check" ${item.selected ? 'checked' : ''} title="选中">`;
+
     const addBtn = thumbnailStrip.querySelector('.add-btn');
     thumbnailStrip.insertBefore(div, addBtn);
 
     div.addEventListener('click', e => {
       if (e.target.classList.contains('thumb-remove')) {
         e.stopPropagation();
-        removeImage(i);
-        return;
+        removeImage(i); return;
       }
       if (e.target.classList.contains('thumb-check')) {
         e.stopPropagation();
         images[i].selected = e.target.checked;
-        updateSelectCount();
-        return;
+        div.classList.toggle('show-check', images[i].selected);
+        updateCounts(); return;
       }
-      switchToImage(i);
+      if (i !== currentIndex) switchToImage(i);
     });
   });
 
-  document.getElementById('countBadge').textContent = `共 ${images.length} 张`;
+  document.getElementById('countBadge').textContent = images.length > 0 ? `共 ${images.length} 张` : '';
+}
+
+function updateCounts() {
+  const sel = images.filter(i => i.selected).length;
+  document.getElementById('selectCount').textContent = sel;
+  document.getElementById('totalCount').textContent = images.length;
+  document.getElementById('selectAll').checked = sel === images.length && images.length > 0;
 }
 
 function switchToImage(index) {
   if (index < 0 || index >= images.length) return;
+  // Save current panel values to current image before switching
+  if (images.length > 0 && currentIndex < images.length) {
+    savePanelToConfig(images[currentIndex].config);
+  }
   currentIndex = index;
+  loadConfigToPanel(images[currentIndex].config);
   fitCanvas();
   render();
   updateThumbnails();
+  document.getElementById('imageNameTag').textContent = images[currentIndex].name;
+  // Scroll to thumbnail
+  const thumb = thumbnailStrip.querySelectorAll('.thumb')[index];
+  if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 }
 
 function removeImage(index) {
+  const wasSelected = images[index].selected;
   images.splice(index, 1);
-  if (images.length === 0) {
-    onImagesChanged();
-    return;
-  }
+  if (images.length === 0) { onImagesChanged(); return; }
   if (currentIndex >= images.length) currentIndex = images.length - 1;
   onImagesChanged();
-  switchToImage(currentIndex);
+  loadConfigToPanel(images[currentIndex].config);
+  fitCanvas();
+  render();
+  document.getElementById('imageNameTag').textContent = images[currentIndex].name;
 }
 
 function resetAll() {
-  images = [];
-  currentIndex = 0;
+  images = []; currentIndex = 0;
   onImagesChanged();
   fileInput.value = '';
+  loadConfigToPanel(defaultConfig());
 }
 
-// Fit canvas to preview area
+// ==================== Config sync: panel <-> image ====================
+function savePanelToConfig(cfg) {
+  cfg.mode = document.querySelector('.mode-tab.active')?.dataset?.mode || 'single';
+  cfg.text = document.getElementById('wmText').value;
+  cfg.font = document.getElementById('wmFont').value;
+  cfg.fontSize = parseInt(document.getElementById('wmFontSize').value);
+  cfg.color = document.getElementById('wmColor').value;
+  cfg.opacity = parseFloat(document.getElementById('wmOpacity').value);
+  cfg.angle = parseInt(document.getElementById('wmAngle').value);
+  cfg.tileCols = parseInt(document.getElementById('tileCols').value);
+  cfg.tileRows = parseInt(document.getElementById('tileRows').value);
+  cfg.tileAngle = parseInt(document.getElementById('tileAngle').value);
+  cfg.tileOffsetX = parseInt(document.getElementById('tileOffsetX').value) / 100;
+  cfg.tileOffsetY = parseInt(document.getElementById('tileOffsetY').value) / 100;
+  cfg.wmPos = {
+    x: parseInt(document.getElementById('wmPosX').value) / 100,
+    y: parseInt(document.getElementById('wmPosY').value) / 100,
+  };
+}
+
+function loadConfigToPanel(cfg) {
+  // Mode tabs
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === cfg.mode);
+  });
+  document.getElementById('singleControls').style.display = cfg.mode === 'single' ? '' : 'none';
+  document.getElementById('tileControls').style.display = cfg.mode === 'tile' ? '' : 'none';
+
+  // Text
+  document.getElementById('wmText').value = cfg.text;
+  document.getElementById('wmFont').value = cfg.font;
+  document.getElementById('wmFontSize').value = cfg.fontSize;
+  document.getElementById('fontSizeLabel').textContent = cfg.fontSize + 'px';
+  document.getElementById('wmColor').value = cfg.color;
+  document.getElementById('wmOpacity').value = cfg.opacity;
+  document.getElementById('opacityLabel').textContent = cfg.opacity.toFixed(2);
+
+  // Single
+  document.getElementById('wmAngle').value = cfg.angle;
+  document.getElementById('angleLabel').textContent = cfg.angle + '°';
+  document.getElementById('wmPosX').value = Math.round(cfg.wmPos.x * 100);
+  document.getElementById('wmPosY').value = Math.round(cfg.wmPos.y * 100);
+  document.getElementById('posXLabel').textContent = Math.round(cfg.wmPos.x * 100) + '%';
+  document.getElementById('posYLabel').textContent = Math.round(cfg.wmPos.y * 100) + '%';
+
+  // Tile
+  document.getElementById('tileCols').value = cfg.tileCols;
+  document.getElementById('colsLabel').textContent = cfg.tileCols;
+  document.getElementById('tileRows').value = cfg.tileRows;
+  document.getElementById('rowsLabel').textContent = cfg.tileRows;
+  document.getElementById('tileAngle').value = cfg.tileAngle;
+  document.getElementById('tileAngleLabel').textContent = cfg.tileAngle + '°';
+  document.getElementById('tileOffsetX').value = Math.round(cfg.tileOffsetX * 100);
+  document.getElementById('tileOffsetY').value = Math.round(cfg.tileOffsetY * 100);
+  document.getElementById('offsetXLabel').textContent = Math.round(cfg.tileOffsetX * 100) + '%';
+  document.getElementById('offsetYLabel').textContent = Math.round(cfg.tileOffsetY * 100) + '%';
+
+  // Update the global mode variable
+  window._mode = cfg.mode;
+}
+
+function saveConfigAndRender() {
+  if (images.length === 0) return;
+  savePanelToConfig(images[currentIndex].config);
+  render();
+}
+
+// Apply current settings to all images
+function applyToAll(type) {
+  if (images.length === 0) return;
+  savePanelToConfig(images[currentIndex].config);
+  const src = images[currentIndex].config;
+
+  images.forEach((item, i) => {
+    if (i === currentIndex) return;
+    if (type === 'text') {
+      item.config.text = src.text;
+      item.config.font = src.font;
+      item.config.fontSize = src.fontSize;
+      item.config.color = src.color;
+      item.config.opacity = src.opacity;
+    } else if (type === 'single') {
+      item.config.angle = src.angle;
+    } else if (type === 'tile') {
+      item.config.tileCols = src.tileCols;
+      item.config.tileRows = src.tileRows;
+      item.config.tileAngle = src.tileAngle;
+      item.config.tileOffsetX = src.tileOffsetX;
+      item.config.tileOffsetY = src.tileOffsetY;
+    } else if (type === 'mode') {
+      item.config.mode = src.mode;
+      loadConfigToPanel(images[currentIndex].config);
+    }
+  });
+
+  showToast('已应用到全部图片');
+  render();
+}
+
+// ==================== Fit canvas ====================
 function fitCanvas() {
-  const img = getCurrentImage();
+  const img = images[currentIndex]?.img;
   if (!img) return;
-  const maxW = canvasArea.clientWidth - 40;
-  const maxH = canvasArea.clientHeight - 40;
+  const maxW = canvasArea.clientWidth - 32;
+  const maxH = canvasArea.clientHeight - 32;
   let w = img.naturalWidth;
   let h = img.naturalHeight;
-  const ratio = Math.min(maxW / w, maxH / h);
+  const ratio = Math.min(maxW / w, maxH / h, 1);
   w = Math.floor(w * ratio);
   h = Math.floor(h * ratio);
   mainCanvas.width = w;
   mainCanvas.height = h;
-}
-
-function getCurrentImage() {
-  if (images.length === 0) return null;
-  return images[currentIndex].img;
-}
-
-function getCurrentPos() {
-  if (images.length === 0) return { x: 0.5, y: 0.5 };
-  return images[currentIndex].wmPos;
 }
 
 window.addEventListener('resize', () => {
@@ -614,92 +887,91 @@ window.addEventListener('resize', () => {
 
 // ==================== Mode switching ====================
 function switchMode(newMode) {
-  mode = newMode;
+  if (images.length > 0) {
+    images[currentIndex].config.mode = newMode;
+  }
   document.querySelectorAll('.mode-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.mode === mode);
+    t.classList.toggle('active', t.dataset.mode === newMode);
   });
-  document.getElementById('singleControls').style.display = mode === 'single' ? '' : 'none';
-  document.getElementById('tileControls').style.display = mode === 'tile' ? '' : 'none';
+  document.getElementById('singleControls').style.display = newMode === 'single' ? '' : 'none';
+  document.getElementById('tileControls').style.display = newMode === 'tile' ? '' : 'none';
+  window._mode = newMode;
   render();
 }
 
-// ==================== Sync position ====================
-function onSyncPosChange() {
-  syncPosition = document.getElementById('syncPos').checked;
-}
+// ==================== Slider handlers (save + render) ====================
+document.getElementById('syncPos').addEventListener('change', function() {
+  syncPosition = this.checked;
+});
 
-// ==================== Select all ====================
-function toggleSelectAll() {
-  const checked = document.getElementById('selectAll').checked;
-  images.forEach(img => img.selected = checked);
-  updateThumbnails();
-  updateSelectCount();
-}
-
-function updateSelectCount() {
-  const count = images.filter(i => i.selected).length;
-  document.getElementById('selectCount').textContent = count;
-  document.getElementById('selectAll').checked = count === images.length && images.length > 0;
-}
-
-// ==================== Slider handlers ====================
 function onFontSizeChange() {
-  document.getElementById('fontSizeLabel').textContent = document.getElementById('wmFontSize').value + 'px';
-  render();
+  document.getElementById('fontSizeLabel').textContent = this.value + 'px';
+  saveConfigAndRender();
 }
 function onOpacityChange() {
-  document.getElementById('opacityLabel').textContent = parseFloat(document.getElementById('wmOpacity').value).toFixed(2);
-  render();
+  document.getElementById('opacityLabel').textContent = parseFloat(this.value).toFixed(2);
+  saveConfigAndRender();
 }
 function onAngleChange() {
-  document.getElementById('angleLabel').textContent = document.getElementById('wmAngle').value + '°';
-  render();
+  document.getElementById('angleLabel').textContent = this.value + '°';
+  saveConfigAndRender();
 }
 function onTileChange() {
   document.getElementById('colsLabel').textContent = document.getElementById('tileCols').value;
   document.getElementById('rowsLabel').textContent = document.getElementById('tileRows').value;
-  render();
+  saveConfigAndRender();
 }
 function onTileAngleChange() {
-  document.getElementById('tileAngleLabel').textContent = document.getElementById('tileAngle').value + '°';
-  render();
+  document.getElementById('tileAngleLabel').textContent = this.value + '°';
+  saveConfigAndRender();
 }
 function onTileOffsetChange() {
   document.getElementById('offsetXLabel').textContent = document.getElementById('tileOffsetX').value + '%';
   document.getElementById('offsetYLabel').textContent = document.getElementById('tileOffsetY').value + '%';
-  render();
+  saveConfigAndRender();
+}
+function onPosXChange() {
+  document.getElementById('posXLabel').textContent = this.value + '%';
+  saveConfigAndRender();
+}
+function onPosYChange() {
+  document.getElementById('posYLabel').textContent = this.value + '%';
+  saveConfigAndRender();
 }
 
-document.getElementById('wmFontSize').addEventListener('input', onFontSizeChange);
-document.getElementById('wmOpacity').addEventListener('input', onOpacityChange);
-document.getElementById('wmAngle').addEventListener('input', onAngleChange);
-document.getElementById('tileCols').addEventListener('input', onTileChange);
-document.getElementById('tileRows').addEventListener('input', onTileChange);
-document.getElementById('tileAngle').addEventListener('input', onTileAngleChange);
-document.getElementById('tileOffsetX').addEventListener('input', onTileOffsetChange);
-document.getElementById('tileOffsetY').addEventListener('input', onTileOffsetChange);
+// Bind slider events
+['wmFontSize', 'wmOpacity', 'wmAngle', 'tileCols', 'tileRows', 'tileAngle', 'tileOffsetX', 'tileOffsetY', 'wmPosX', 'wmPosY'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const map = {
+    wmFontSize: onFontSizeChange,
+    wmOpacity: onOpacityChange,
+    wmAngle: onAngleChange,
+    tileCols: onTileChange,
+    tileRows: onTileChange,
+    tileAngle: onTileAngleChange,
+    tileOffsetX: onTileOffsetChange,
+    tileOffsetY: onTileOffsetChange,
+    wmPosX: onPosXChange,
+    wmPosY: onPosYChange,
+  };
+  el.addEventListener('input', map[id]);
+});
+
+// ==================== Select all ====================
+function toggleSelectAll() {
+  const checked = document.getElementById('selectAll').checked;
+  images.forEach(i => i.selected = checked);
+  updateThumbnails();
+  updateCounts();
+}
 
 // ==================== Rendering ====================
-function getWatermarkConfig() {
-  return {
-    text: document.getElementById('wmText').value || '我的水印',
-    font: document.getElementById('wmFont').value,
-    fontSize: parseInt(document.getElementById('wmFontSize').value),
-    color: document.getElementById('wmColor').value,
-    opacity: parseFloat(document.getElementById('wmOpacity').value),
-    angle: parseInt(document.getElementById('wmAngle').value),
-    tileCols: parseInt(document.getElementById('tileCols').value),
-    tileRows: parseInt(document.getElementById('tileRows').value),
-    tileAngle: parseInt(document.getElementById('tileAngle').value),
-    tileOffsetX: parseInt(document.getElementById('tileOffsetX').value) / 100,
-    tileOffsetY: parseInt(document.getElementById('tileOffsetY').value) / 100,
-  };
-}
-
 function render() {
-  const img = getCurrentImage();
+  const img = images[currentIndex]?.img;
   if (!img) return;
-  const cfg = getWatermarkConfig();
+  const cfg = images[currentIndex].config;
+
   const cw = mainCanvas.width;
   const ch = mainCanvas.height;
 
@@ -712,7 +984,7 @@ function render() {
   ctx.textBaseline = 'middle';
   ctx.globalAlpha = cfg.opacity;
 
-  if (mode === 'single') {
+  if (cfg.mode === 'single') {
     renderSingle(cfg, cw, ch);
   } else {
     renderTile(cfg, cw, ch);
@@ -722,9 +994,8 @@ function render() {
 }
 
 function renderSingle(cfg, cw, ch) {
-  const pos = getCurrentPos();
-  const x = pos.x * cw;
-  const y = pos.y * ch;
+  const x = cfg.wmPos.x * cw;
+  const y = cfg.wmPos.y * ch;
   const angleRad = (cfg.angle * Math.PI) / 180;
 
   ctx.save();
@@ -737,8 +1008,8 @@ function renderSingle(cfg, cw, ch) {
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     const metrics = ctx.measureText(cfg.text);
-    const bw = metrics.width * 0.6;
-    const bh = cfg.fontSize * 0.7;
+    const bw = Math.max(metrics.width * 0.55, cfg.fontSize * 0.3);
+    const bh = cfg.fontSize * 0.65;
     ctx.strokeRect(-bw, -bh, bw * 2, bh * 2);
     ctx.setLineDash([]);
   }
@@ -750,12 +1021,10 @@ function renderTile(cfg, cw, ch) {
   const cols = cfg.tileCols;
   const rows = cfg.tileRows;
   const angleRad = (cfg.tileAngle * Math.PI) / 180;
-
   const cellW = cw / cols;
   const cellH = ch / rows;
   const offsetX = cfg.tileOffsetX * cellW;
   const offsetY = cfg.tileOffsetY * cellH;
-
   const extendCols = 2;
   const extendRows = 2;
 
@@ -763,7 +1032,6 @@ function renderTile(cfg, cw, ch) {
     for (let col = -extendCols; col < cols + extendCols; col++) {
       const cx = col * cellW + cellW / 2 + offsetX;
       const cy = row * cellH + cellH / 2 + offsetY;
-
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(angleRad);
@@ -785,57 +1053,57 @@ function getCanvasPos(e) {
 }
 
 function isNearWatermark(cx, cy) {
-  const cfg = getWatermarkConfig();
-  const pos = getCurrentPos();
-  const wx = pos.x * mainCanvas.width;
-  const wy = pos.y * mainCanvas.height;
-
+  if (images.length === 0) return false;
+  const cfg = images[currentIndex].config;
+  const wx = cfg.wmPos.x * mainCanvas.width;
+  const wy = cfg.wmPos.y * mainCanvas.height;
   ctx.save();
   ctx.font = `${cfg.fontSize}px "${cfg.font}"`;
   const metrics = ctx.measureText(cfg.text);
   ctx.restore();
-
   const halfW = metrics.width * 0.6;
   const halfH = cfg.fontSize * 0.7;
-
   return Math.abs(cx - wx) < halfW && Math.abs(cy - wy) < halfH;
 }
 
-function updateWmPos(canvasX, canvasY) {
+function updateWmPosFromCanvas(canvasX, canvasY) {
   const pos = {
     x: Math.max(0, Math.min(1, canvasX / mainCanvas.width)),
     y: Math.max(0, Math.min(1, canvasY / mainCanvas.height)),
   };
   if (syncPosition) {
-    images.forEach(img => img.wmPos = { ...pos });
+    images.forEach(img => img.config.wmPos = { ...pos });
   } else {
-    images[currentIndex].wmPos = pos;
+    images[currentIndex].config.wmPos = pos;
   }
+  // Update panel sliders
+  document.getElementById('wmPosX').value = Math.round(pos.x * 100);
+  document.getElementById('wmPosY').value = Math.round(pos.y * 100);
+  document.getElementById('posXLabel').textContent = Math.round(pos.x * 100) + '%';
+  document.getElementById('posYLabel').textContent = Math.round(pos.y * 100) + '%';
 }
 
 mainCanvas.addEventListener('mousedown', e => {
-  if (images.length === 0 || mode !== 'single') return;
+  if (images.length === 0 || images[currentIndex].config.mode !== 'single') return;
   const pos = getCanvasPos(e);
   if (isNearWatermark(pos.x, pos.y)) {
     dragging = true;
     mainCanvas.style.cursor = 'grabbing';
     e.preventDefault();
   } else {
-    updateWmPos(pos.x, pos.y);
+    updateWmPosFromCanvas(pos.x, pos.y);
     render();
   }
 });
 
 mainCanvas.addEventListener('mousemove', e => {
-  if (images.length === 0 || mode !== 'single') return;
+  if (images.length === 0 || images[currentIndex].config.mode !== 'single') return;
   const pos = getCanvasPos(e);
   if (dragging) {
-    updateWmPos(pos.x, pos.y);
+    updateWmPosFromCanvas(pos.x, pos.y);
     render();
-  } else if (isNearWatermark(pos.x, pos.y)) {
-    mainCanvas.style.cursor = 'grab';
   } else {
-    mainCanvas.style.cursor = 'crosshair';
+    mainCanvas.style.cursor = isNearWatermark(pos.x, pos.y) ? 'grab' : 'crosshair';
   }
 });
 
@@ -848,14 +1116,13 @@ mainCanvas.addEventListener('mouseleave', () => {
 
 // Touch support
 mainCanvas.addEventListener('touchstart', e => {
-  if (images.length === 0 || mode !== 'single') return;
-  const touch = e.touches[0];
-  const pos = getCanvasPos(touch);
+  if (images.length === 0 || images[currentIndex].config.mode !== 'single') return;
+  const pos = getCanvasPos(e.touches[0]);
   if (isNearWatermark(pos.x, pos.y)) {
     dragging = true;
     e.preventDefault();
   } else {
-    updateWmPos(pos.x, pos.y);
+    updateWmPosFromCanvas(pos.x, pos.y);
     render();
   }
 });
@@ -863,15 +1130,15 @@ mainCanvas.addEventListener('touchmove', e => {
   if (!dragging) return;
   e.preventDefault();
   const pos = getCanvasPos(e.touches[0]);
-  updateWmPos(pos.x, pos.y);
+  updateWmPosFromCanvas(pos.x, pos.y);
   render();
-});
+}, { passive: false });
 mainCanvas.addEventListener('touchend', () => {
   if (dragging) { dragging = false; render(); }
 });
 
-// ==================== Watermark render function (reusable) ====================
-function applyWatermarkToCanvas(dCtx, dw, dh, wmPos, cfg, scaleFactor) {
+// ==================== Apply watermark to download canvas (reusable) ====================
+function applyWatermarkToCanvas(dCtx, dw, dh, cfg, scaleFactor) {
   const scaledFontSize = Math.round(cfg.fontSize * scaleFactor);
   dCtx.font = `${scaledFontSize}px "${cfg.font}"`;
   dCtx.fillStyle = cfg.color;
@@ -879,9 +1146,9 @@ function applyWatermarkToCanvas(dCtx, dw, dh, wmPos, cfg, scaleFactor) {
   dCtx.textBaseline = 'middle';
   dCtx.globalAlpha = cfg.opacity;
 
-  if (mode === 'single') {
-    const x = wmPos.x * dw;
-    const y = wmPos.y * dh;
+  if (cfg.mode === 'single') {
+    const x = cfg.wmPos.x * dw;
+    const y = cfg.wmPos.y * dh;
     const angleRad = (cfg.angle * Math.PI) / 180;
     dCtx.save();
     dCtx.translate(x, y);
@@ -898,7 +1165,6 @@ function applyWatermarkToCanvas(dCtx, dw, dh, wmPos, cfg, scaleFactor) {
     const offsetY = cfg.tileOffsetY * cellH;
     const extendCols = 2;
     const extendRows = 2;
-
     for (let row = -extendRows; row < rows + extendRows; row++) {
       for (let col = -extendCols; col < cols + extendCols; col++) {
         const cx = col * cellW + cellW / 2 + offsetX;
@@ -913,47 +1179,42 @@ function applyWatermarkToCanvas(dCtx, dw, dh, wmPos, cfg, scaleFactor) {
   }
 }
 
-// ==================== Download: single ====================
+// ==================== Download ====================
 function downloadCurrent() {
   if (images.length === 0) return;
   downloadSingleImage(images[currentIndex]);
+  closeMobileSettings();
 }
 
 function downloadSelected() {
   const selected = images.filter(i => i.selected);
   if (selected.length === 0) { showToast('没有选中的图片'); return; }
-  if (selected.length === 1) {
-    downloadSingleImage(selected[0]);
-    return;
-  }
+  if (selected.length === 1) { downloadSingleImage(selected[0]); return; }
   downloadAsZip(selected);
+  closeMobileSettings();
 }
 
 function downloadAllZip() {
   if (images.length === 0) return;
   downloadAsZip(images);
+  closeMobileSettings();
 }
 
 function downloadSingleImage(item) {
-  const cfg = getWatermarkConfig();
+  const cfg = item.config;
   const downCanvas = document.createElement('canvas');
   downCanvas.width = item.img.naturalWidth;
   downCanvas.height = item.img.naturalHeight;
   const dCtx = downCanvas.getContext('2d');
   dCtx.drawImage(item.img, 0, 0);
-
-  const scaleFactor = Math.min(
-    downCanvas.width / mainCanvas.width,
-    downCanvas.height / mainCanvas.height
-  );
-  applyWatermarkToCanvas(dCtx, downCanvas.width, downCanvas.height, item.wmPos, cfg, scaleFactor);
+  const scaleFactor = Math.min(downCanvas.width / Math.max(mainCanvas.width, 1), 1);
+  applyWatermarkToCanvas(dCtx, downCanvas.width, downCanvas.height, cfg, scaleFactor);
 
   downCanvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const baseName = item.name.replace(/\.[^.]+$/, '');
-    a.download = baseName + '_watermarked.png';
+    a.download = item.name.replace(/\.[^.]+$/, '') + '_watermarked.png';
     a.click();
     URL.revokeObjectURL(url);
     showToast('下载完成！');
@@ -967,7 +1228,6 @@ async function downloadAsZip(itemList) {
   msg.textContent = `处理 0 / ${itemList.length}...`;
 
   const zip = new JSZip();
-  const cfg = getWatermarkConfig();
 
   for (let i = 0; i < itemList.length; i++) {
     const item = itemList[i];
@@ -978,29 +1238,42 @@ async function downloadAsZip(itemList) {
     canvas.height = item.img.naturalHeight;
     const dCtx = canvas.getContext('2d');
     dCtx.drawImage(item.img, 0, 0);
-
-    // Use a reasonable scale factor; watermark is sized relative to display canvas
     const scaleFactor = Math.min(canvas.width / Math.max(mainCanvas.width, 1), 1);
-    applyWatermarkToCanvas(dCtx, canvas.width, canvas.height, item.wmPos, cfg, scaleFactor);
+    applyWatermarkToCanvas(dCtx, canvas.width, canvas.height, item.config, scaleFactor);
 
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    const baseName = item.name.replace(/\.[^.]+$/, '');
-    zip.file(baseName + '_watermarked.png', blob);
+    zip.file(item.name.replace(/\.[^.]+$/, '') + '_watermarked.png', blob);
   }
 
   msg.textContent = '正在打包...';
   const zipBlob = await zip.generateAsync({ type: 'blob' });
-
   const url = URL.createObjectURL(zipBlob);
   const a = document.createElement('a');
   a.href = url;
   a.download = 'watermarked_images.zip';
   a.click();
   URL.revokeObjectURL(url);
-
   overlay.style.display = 'none';
   showToast(`已完成！共处理 ${itemList.length} 张图片`);
 }
+
+// ==================== Mobile settings panel ====================
+function toggleMobileSettings() {
+  const open = controlsPanel.classList.toggle('open');
+  controlsBackdrop.classList.toggle('open', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+
+function closeMobileSettings() {
+  controlsPanel.classList.remove('open');
+  controlsBackdrop.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeMobileSettings();
+});
 
 // ==================== Toast ====================
 function showToast(msg) {
@@ -1012,9 +1285,8 @@ function showToast(msg) {
 }
 
 // ==================== Init ====================
-document.getElementById('fontSizeLabel').textContent = document.getElementById('wmFontSize').value + 'px';
-document.getElementById('opacityLabel').textContent = parseFloat(document.getElementById('wmOpacity').value).toFixed(2);
-document.getElementById('angleLabel').textContent = document.getElementById('wmAngle').value + '°';
+window._mode = 'single';
+loadConfigToPanel(defaultConfig());
 </script>
 
 </body>
