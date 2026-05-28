@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>自定义水印工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -15,24 +16,29 @@ body {
 }
 .header {
   background: #16213e;
-  padding: 12px 24px;
+  padding: 10px 20px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid #0f3460;
 }
-.header h1 { font-size: 20px; color: #e94560; }
-.header .actions { display: flex; gap: 10px; }
+.header h1 { font-size: 18px; color: #e94560; }
+.header .actions { display: flex; gap: 8px; }
 .container {
   display: flex;
-  height: calc(100vh - 57px);
+  height: calc(100vh - 53px);
 }
 /* Preview area */
 .preview {
   flex: 1;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column;
   background: #16213e;
   position: relative;
-  overflow: auto;
+  overflow: hidden;
+}
+.preview-canvas-area {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
   padding: 20px;
+  overflow: auto;
 }
 .preview .drop-zone {
   border: 2px dashed #0f3460;
@@ -45,8 +51,8 @@ body {
 }
 .preview .drop-zone:hover,
 .preview .drop-zone.drag-over { border-color: #e94560; color: #e94560; }
-.preview .drop-zone .icon { font-size: 48px; margin-bottom: 16px; }
-.preview .drop-zone p { font-size: 14px; line-height: 1.8; }
+.preview .drop-zone .icon { font-size: 48px; margin-bottom: 12px; }
+.preview .drop-zone p { font-size: 13px; line-height: 1.8; }
 .preview canvas {
   max-width: 100%; max-height: 100%;
   object-fit: contain;
@@ -56,6 +62,69 @@ body {
 }
 .preview .canvas-wrapper { position: relative; display: inline-block; }
 .preview input[type="file"] { display: none; }
+
+/* Thumbnail strip */
+.thumbnail-strip {
+  display: flex; gap: 6px;
+  padding: 8px 12px;
+  background: #12122a;
+  border-top: 1px solid #0f3460;
+  overflow-x: auto;
+  min-height: 74px;
+  align-items: center;
+}
+.thumbnail-strip::-webkit-scrollbar { height: 4px; }
+.thumbnail-strip::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 2px; }
+.thumb {
+  position: relative;
+  width: 56px; height: 56px;
+  border-radius: 6px; overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+}
+.thumb:hover { border-color: #4a6a9a; }
+.thumb.active { border-color: #e94560; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb .thumb-index {
+  position: absolute; top: 2px; left: 4px;
+  font-size: 10px; color: #fff;
+  background: rgba(0,0,0,0.6); border-radius: 3px;
+  padding: 0 4px; line-height: 16px;
+}
+.thumb .thumb-remove {
+  position: absolute; top: 2px; right: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%; background: rgba(233,69,96,0.9);
+  color: #fff; border: none; cursor: pointer;
+  font-size: 11px; line-height: 16px; text-align: center;
+  display: none;
+}
+.thumb:hover .thumb-remove { display: block; }
+.thumb .thumb-check {
+  position: absolute; bottom: 2px; right: 2px;
+  width: 18px; height: 18px;
+  accent-color: #e94560;
+  cursor: pointer;
+  display: none;
+}
+.thumb:hover .thumb-check,
+.thumb.show-check .thumb-check { display: block; }
+.thumbnail-strip .add-btn {
+  width: 56px; height: 56px;
+  border-radius: 6px;
+  border: 2px dashed #0f3460;
+  background: transparent;
+  color: #6c7a8d;
+  font-size: 24px; cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.thumbnail-strip .add-btn:hover { border-color: #e94560; color: #e94560; }
+.thumbnail-strip .count-badge {
+  font-size: 11px; color: #6c7a8d; margin-left: 6px; flex-shrink: 0;
+}
 
 /* Controls panel */
 .controls {
@@ -82,9 +151,7 @@ body {
 }
 
 /* Mode tabs */
-.mode-tabs {
-  display: flex; gap: 4px;
-}
+.mode-tabs { display: flex; gap: 4px; }
 .mode-tab {
   flex: 1;
   padding: 8px;
@@ -144,9 +211,9 @@ body {
 .form-group .value-label { font-size: 11px; color: #e94560; float: right; }
 
 .btn {
-  padding: 10px 20px;
+  padding: 10px 16px;
   border: none; border-radius: 6px;
-  font-size: 14px; font-weight: 600;
+  font-size: 13px; font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
@@ -156,21 +223,56 @@ body {
 .btn-secondary { background: #0f3460; color: #e0e0e0; }
 .btn-secondary:hover { background: #1a4a7a; }
 .btn-download {
-  width: 100%;
-  padding: 12px;
-  background: #e94560;
-  color: #fff;
+  width: 100%; padding: 12px;
+  background: #e94560; color: #fff;
   font-size: 15px;
 }
 .btn-download:hover { background: #d63852; }
 .btn-download:disabled { background: #2a2a3e; color: #555; cursor: not-allowed; }
+.btn-outline {
+  background: transparent; border: 1px solid #e94560; color: #e94560;
+}
+.btn-outline:hover { background: rgba(233,69,96,0.15); }
+
+/* Download buttons group */
+.download-group { display: flex; gap: 8px; }
+.download-group .btn-download { flex: 1; }
+.download-group .btn-outline {
+  flex: 0; padding: 12px 16px;
+}
+
+/* Batch select bar */
+.select-bar {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: #8a9bb5;
+}
+.select-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.select-bar input[type="checkbox"] { accent-color: #e94560; }
+
+/* Processing overlay */
+.processing-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 999;
+}
+.processing-overlay .spinner {
+  width: 40px; height: 40px;
+  border: 3px solid #0f3460;
+  border-top-color: #e94560;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.processing-overlay p { margin-top: 12px; color: #e0e0e0; font-size: 14px; }
 
 /* Toast */
 .toast {
   position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
   background: #e94560; color: #fff;
   padding: 12px 28px; border-radius: 8px;
-  font-size: 14px; z-index: 1000;
+  font-size: 14px; z-index: 1001;
   opacity: 0; transition: opacity 0.3s;
   pointer-events: none;
 }
@@ -182,20 +284,28 @@ body {
 <div class="header">
   <h1>自定义水印工具</h1>
   <div class="actions">
-    <button class="btn btn-secondary" onclick="resetAll()">清除图片</button>
+    <button class="btn btn-secondary" onclick="resetAll()">清除全部</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">添加图片</button>
   </div>
 </div>
 
 <div class="container">
   <!-- Preview -->
   <div class="preview" id="previewArea">
-    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-      <div class="icon">🖼️</div>
-      <p>拖拽图片到此处<br>或点击选择文件</p>
-      <input type="file" id="fileInput" accept="image/*">
+    <div class="preview-canvas-area" id="canvasArea">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">🖼️</div>
+        <p>拖拽图片到此处<br>或点击选择文件（支持多选）<br>或 Ctrl+V 粘贴</p>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+      </div>
+      <div class="canvas-wrapper" id="canvasWrapper" style="display:none;">
+        <canvas id="mainCanvas"></canvas>
+      </div>
     </div>
-    <div class="canvas-wrapper" id="canvasWrapper" style="display:none;">
-      <canvas id="mainCanvas"></canvas>
+    <!-- Thumbnail strip -->
+    <div class="thumbnail-strip" id="thumbnailStrip" style="display:none;">
+      <button class="add-btn" onclick="document.getElementById('fileInput').click()" title="添加图片">+</button>
+      <span class="count-badge" id="countBadge"></span>
     </div>
   </div>
 
@@ -253,6 +363,9 @@ body {
       <p style="font-size:11px;color:#6c7a8d;margin-top:6px;">
         提示：在图片上拖动水印调整位置，或点击任意位置移动水印
       </p>
+      <div class="select-bar" style="margin-top:8px;">
+        <label><input type="checkbox" id="syncPos" onchange="onSyncPosChange()"> 所有图片统一水印位置</label>
+      </div>
     </div>
 
     <!-- Tile controls -->
@@ -284,34 +397,56 @@ body {
       </div>
     </div>
 
-    <button class="btn btn-download" id="btnDownload" disabled onclick="downloadImage()">
-      下载带水印图片 (PNG)
+    <div class="select-bar">
+      <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> 全选 (<span id="selectCount">0</span>张)</label>
+    </div>
+
+    <div class="download-group">
+      <button class="btn btn-download" id="btnDownloadCurrent" disabled onclick="downloadCurrent()">
+        下载当前图
+      </button>
+      <button class="btn btn-download" id="btnDownloadSelected" disabled onclick="downloadSelected()">
+        下载选中
+      </button>
+    </div>
+    <button class="btn btn-outline" id="btnDownloadAll" disabled onclick="downloadAllZip()" style="width:100%;">
+      打包下载全部 (ZIP)
     </button>
   </div>
+</div>
+
+<!-- Processing overlay -->
+<div class="processing-overlay" id="processingOverlay" style="display:none;">
+  <div class="spinner"></div>
+  <p id="processingMsg">处理中...</p>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 // ==================== State ====================
-let image = null;          // HTMLImageElement
-let imageLoaded = false;
-let mode = 'single'; // 'single' | 'tile'
-
-// Single mode state
-let wmPos = { x: 0.5, y: 0.5 }; // relative 0-1
+// images: [{ img: HTMLImageElement, name: string, wmPos: {x, y}, selected: boolean }]
+let images = [];
+let currentIndex = 0;
+let mode = 'single';
+let syncPosition = false; // when true, all images share the same wmPos
 let dragging = false;
 
 // ==================== DOM refs ====================
 const dropZone = document.getElementById('dropZone');
 const canvasWrapper = document.getElementById('canvasWrapper');
+const canvasArea = document.getElementById('canvasArea');
 const mainCanvas = document.getElementById('mainCanvas');
 const ctx = mainCanvas.getContext('2d');
 const fileInput = document.getElementById('fileInput');
+const thumbnailStrip = document.getElementById('thumbnailStrip');
 
 // ==================== Image loading ====================
 fileInput.addEventListener('change', e => {
-  if (e.target.files.length) loadImage(e.target.files[0]);
+  if (e.target.files.length) {
+    loadFiles(Array.from(e.target.files));
+    fileInput.value = '';
+  }
 });
 
 // Drag & drop
@@ -320,60 +455,142 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-ove
 dropZone.addEventListener('drop', e => {
   e.preventDefault();
   dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) loadImage(file);
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  if (files.length) loadFiles(files);
 });
 
 // Paste from clipboard
 document.addEventListener('paste', e => {
   const items = e.clipboardData.items;
+  const files = [];
   for (const item of items) {
     if (item.type.startsWith('image/')) {
-      loadImage(item.getAsFile());
-      break;
+      files.push(item.getAsFile());
     }
   }
+  if (files.length) loadFiles(files);
 });
 
-function loadImage(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      image = img;
-      imageLoaded = true;
-      wmPos = { x: 0.5, y: 0.5 }; // reset to center
-      dropZone.style.display = 'none';
-      canvasWrapper.style.display = 'inline-block';
-      fitCanvas();
-      render();
-      document.getElementById('btnDownload').disabled = false;
+function loadFiles(files) {
+  let loaded = 0;
+  const total = files.length;
+
+  files.forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        images.push({
+          img: img,
+          name: file.name || `image_${images.length + 1}.png`,
+          wmPos: { x: 0.5, y: 0.5 },
+          selected: true
+        });
+        loaded++;
+        if (loaded === total) {
+          onImagesChanged();
+          // select the first of the new batch
+          currentIndex = images.length - total;
+          switchToImage(currentIndex);
+        }
+      };
+      img.src = e.target.result;
     };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+function onImagesChanged() {
+  const hasImages = images.length > 0;
+  dropZone.style.display = hasImages ? 'none' : '';
+  canvasWrapper.style.display = hasImages ? 'inline-block' : 'none';
+  thumbnailStrip.style.display = hasImages ? 'flex' : 'none';
+
+  if (hasImages) {
+    document.getElementById('btnDownloadCurrent').disabled = false;
+    document.getElementById('btnDownloadSelected').disabled = false;
+    document.getElementById('btnDownloadAll').disabled = false;
+  } else {
+    document.getElementById('btnDownloadCurrent').disabled = true;
+    document.getElementById('btnDownloadSelected').disabled = true;
+    document.getElementById('btnDownloadAll').disabled = true;
+    mainCanvas.width = 0;
+    mainCanvas.height = 0;
+    currentIndex = 0;
+  }
+
+  updateThumbnails();
+  updateSelectCount();
+}
+
+function updateThumbnails() {
+  // Clear existing thumbs (keep add button and badge)
+  const existing = thumbnailStrip.querySelectorAll('.thumb');
+  existing.forEach(t => t.remove());
+
+  images.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'thumb' + (i === currentIndex ? ' active' : '');
+    div.innerHTML = `<img src="${item.img.src}" alt=""><span class="thumb-index">${i + 1}</span>`
+      + `<button class="thumb-remove" title="删除">&times;</button>`
+      + `<input type="checkbox" class="thumb-check" ${item.selected ? 'checked' : ''} title="选中/取消">`;
+    // Insert before add button
+    const addBtn = thumbnailStrip.querySelector('.add-btn');
+    thumbnailStrip.insertBefore(div, addBtn);
+
+    div.addEventListener('click', e => {
+      if (e.target.classList.contains('thumb-remove')) {
+        e.stopPropagation();
+        removeImage(i);
+        return;
+      }
+      if (e.target.classList.contains('thumb-check')) {
+        e.stopPropagation();
+        images[i].selected = e.target.checked;
+        updateSelectCount();
+        return;
+      }
+      switchToImage(i);
+    });
+  });
+
+  document.getElementById('countBadge').textContent = `共 ${images.length} 张`;
+}
+
+function switchToImage(index) {
+  if (index < 0 || index >= images.length) return;
+  currentIndex = index;
+  fitCanvas();
+  render();
+  updateThumbnails();
+}
+
+function removeImage(index) {
+  images.splice(index, 1);
+  if (images.length === 0) {
+    onImagesChanged();
+    return;
+  }
+  if (currentIndex >= images.length) currentIndex = images.length - 1;
+  onImagesChanged();
+  switchToImage(currentIndex);
 }
 
 function resetAll() {
-  image = null;
-  imageLoaded = false;
-  wmPos = { x: 0.5, y: 0.5 };
-  mainCanvas.width = 0;
-  mainCanvas.height = 0;
-  dropZone.style.display = '';
-  canvasWrapper.style.display = 'none';
-  document.getElementById('btnDownload').disabled = true;
+  images = [];
+  currentIndex = 0;
+  onImagesChanged();
   fileInput.value = '';
 }
 
-// Fit canvas to preview area while maintaining aspect ratio
+// Fit canvas to preview area
 function fitCanvas() {
-  if (!image) return;
-  const container = document.getElementById('previewArea');
-  const maxW = container.clientWidth - 40;
-  const maxH = container.clientHeight - 40;
-  let w = image.naturalWidth;
-  let h = image.naturalHeight;
+  const img = getCurrentImage();
+  if (!img) return;
+  const maxW = canvasArea.clientWidth - 40;
+  const maxH = canvasArea.clientHeight - 40;
+  let w = img.naturalWidth;
+  let h = img.naturalHeight;
   const ratio = Math.min(maxW / w, maxH / h);
   w = Math.floor(w * ratio);
   h = Math.floor(h * ratio);
@@ -381,8 +598,18 @@ function fitCanvas() {
   mainCanvas.height = h;
 }
 
+function getCurrentImage() {
+  if (images.length === 0) return null;
+  return images[currentIndex].img;
+}
+
+function getCurrentPos() {
+  if (images.length === 0) return { x: 0.5, y: 0.5 };
+  return images[currentIndex].wmPos;
+}
+
 window.addEventListener('resize', () => {
-  if (imageLoaded) { fitCanvas(); render(); }
+  if (images.length > 0) { fitCanvas(); render(); }
 });
 
 // ==================== Mode switching ====================
@@ -396,17 +623,36 @@ function switchMode(newMode) {
   render();
 }
 
+// ==================== Sync position ====================
+function onSyncPosChange() {
+  syncPosition = document.getElementById('syncPos').checked;
+}
+
+// ==================== Select all ====================
+function toggleSelectAll() {
+  const checked = document.getElementById('selectAll').checked;
+  images.forEach(img => img.selected = checked);
+  updateThumbnails();
+  updateSelectCount();
+}
+
+function updateSelectCount() {
+  const count = images.filter(i => i.selected).length;
+  document.getElementById('selectCount').textContent = count;
+  document.getElementById('selectAll').checked = count === images.length && images.length > 0;
+}
+
 // ==================== Slider handlers ====================
 function onFontSizeChange() {
-  document.getElementById('fontSizeLabel').textContent = this.value + 'px';
+  document.getElementById('fontSizeLabel').textContent = document.getElementById('wmFontSize').value + 'px';
   render();
 }
 function onOpacityChange() {
-  document.getElementById('opacityLabel').textContent = parseFloat(this.value).toFixed(2);
+  document.getElementById('opacityLabel').textContent = parseFloat(document.getElementById('wmOpacity').value).toFixed(2);
   render();
 }
 function onAngleChange() {
-  document.getElementById('angleLabel').textContent = this.value + '°';
+  document.getElementById('angleLabel').textContent = document.getElementById('wmAngle').value + '°';
   render();
 }
 function onTileChange() {
@@ -415,7 +661,7 @@ function onTileChange() {
   render();
 }
 function onTileAngleChange() {
-  document.getElementById('tileAngleLabel').textContent = this.value + '°';
+  document.getElementById('tileAngleLabel').textContent = document.getElementById('tileAngle').value + '°';
   render();
 }
 function onTileOffsetChange() {
@@ -424,7 +670,6 @@ function onTileOffsetChange() {
   render();
 }
 
-// Fix: bind all slider events properly
 document.getElementById('wmFontSize').addEventListener('input', onFontSizeChange);
 document.getElementById('wmOpacity').addEventListener('input', onOpacityChange);
 document.getElementById('wmAngle').addEventListener('input', onAngleChange);
@@ -452,16 +697,15 @@ function getWatermarkConfig() {
 }
 
 function render() {
-  if (!imageLoaded) return;
+  const img = getCurrentImage();
+  if (!img) return;
   const cfg = getWatermarkConfig();
   const cw = mainCanvas.width;
   const ch = mainCanvas.height;
 
-  // Clear and draw image scaled to canvas
   ctx.clearRect(0, 0, cw, ch);
-  ctx.drawImage(image, 0, 0, cw, ch);
+  ctx.drawImage(img, 0, 0, cw, ch);
 
-  // Set text style
   ctx.font = `${cfg.fontSize}px "${cfg.font}"`;
   ctx.fillStyle = cfg.color;
   ctx.textAlign = 'center';
@@ -478,8 +722,9 @@ function render() {
 }
 
 function renderSingle(cfg, cw, ch) {
-  const x = wmPos.x * cw;
-  const y = wmPos.y * ch;
+  const pos = getCurrentPos();
+  const x = pos.x * cw;
+  const y = pos.y * ch;
   const angleRad = (cfg.angle * Math.PI) / 180;
 
   ctx.save();
@@ -487,7 +732,6 @@ function renderSingle(cfg, cw, ch) {
   ctx.rotate(angleRad);
   ctx.fillText(cfg.text, 0, 0);
 
-  // Draw subtle drag indicator
   if (!dragging) {
     ctx.strokeStyle = 'rgba(255,255,255,0.3)';
     ctx.lineWidth = 1;
@@ -512,7 +756,6 @@ function renderTile(cfg, cw, ch) {
   const offsetX = cfg.tileOffsetX * cellW;
   const offsetY = cfg.tileOffsetY * cellH;
 
-  // Extend beyond borders for rotation coverage
   const extendCols = 2;
   const extendRows = 2;
 
@@ -543,10 +786,10 @@ function getCanvasPos(e) {
 
 function isNearWatermark(cx, cy) {
   const cfg = getWatermarkConfig();
-  const wx = wmPos.x * mainCanvas.width;
-  const wy = wmPos.y * mainCanvas.height;
+  const pos = getCurrentPos();
+  const wx = pos.x * mainCanvas.width;
+  const wy = pos.y * mainCanvas.height;
 
-  // Approximate text dimensions
   ctx.save();
   ctx.font = `${cfg.fontSize}px "${cfg.font}"`;
   const metrics = ctx.measureText(cfg.text);
@@ -558,29 +801,36 @@ function isNearWatermark(cx, cy) {
   return Math.abs(cx - wx) < halfW && Math.abs(cy - wy) < halfH;
 }
 
-mainCanvas.addEventListener('mousedown', e => {
-  if (!imageLoaded || mode !== 'single') return;
-  const pos = getCanvasPos(e);
+function updateWmPos(canvasX, canvasY) {
+  const pos = {
+    x: Math.max(0, Math.min(1, canvasX / mainCanvas.width)),
+    y: Math.max(0, Math.min(1, canvasY / mainCanvas.height)),
+  };
+  if (syncPosition) {
+    images.forEach(img => img.wmPos = { ...pos });
+  } else {
+    images[currentIndex].wmPos = pos;
+  }
+}
 
+mainCanvas.addEventListener('mousedown', e => {
+  if (images.length === 0 || mode !== 'single') return;
+  const pos = getCanvasPos(e);
   if (isNearWatermark(pos.x, pos.y)) {
     dragging = true;
     mainCanvas.style.cursor = 'grabbing';
     e.preventDefault();
   } else {
-    // Click to move
-    wmPos.x = Math.max(0, Math.min(1, pos.x / mainCanvas.width));
-    wmPos.y = Math.max(0, Math.min(1, pos.y / mainCanvas.height));
+    updateWmPos(pos.x, pos.y);
     render();
   }
 });
 
 mainCanvas.addEventListener('mousemove', e => {
-  if (!imageLoaded || mode !== 'single') return;
+  if (images.length === 0 || mode !== 'single') return;
   const pos = getCanvasPos(e);
-
   if (dragging) {
-    wmPos.x = Math.max(0, Math.min(1, pos.x / mainCanvas.width));
-    wmPos.y = Math.max(0, Math.min(1, pos.y / mainCanvas.height));
+    updateWmPos(pos.x, pos.y);
     render();
   } else if (isNearWatermark(pos.x, pos.y)) {
     mainCanvas.style.cursor = 'grab';
@@ -590,80 +840,44 @@ mainCanvas.addEventListener('mousemove', e => {
 });
 
 mainCanvas.addEventListener('mouseup', () => {
-  if (dragging) {
-    dragging = false;
-    mainCanvas.style.cursor = 'crosshair';
-    render();
-  }
+  if (dragging) { dragging = false; mainCanvas.style.cursor = 'crosshair'; render(); }
 });
-
 mainCanvas.addEventListener('mouseleave', () => {
-  if (dragging) {
-    dragging = false;
-    mainCanvas.style.cursor = 'crosshair';
-    render();
-  }
+  if (dragging) { dragging = false; mainCanvas.style.cursor = 'crosshair'; render(); }
 });
 
 // Touch support
 mainCanvas.addEventListener('touchstart', e => {
-  if (!imageLoaded || mode !== 'single') return;
+  if (images.length === 0 || mode !== 'single') return;
   const touch = e.touches[0];
   const pos = getCanvasPos(touch);
-
   if (isNearWatermark(pos.x, pos.y)) {
     dragging = true;
     e.preventDefault();
   } else {
-    wmPos.x = Math.max(0, Math.min(1, pos.x / mainCanvas.width));
-    wmPos.y = Math.max(0, Math.min(1, pos.y / mainCanvas.height));
+    updateWmPos(pos.x, pos.y);
     render();
   }
 });
-
 mainCanvas.addEventListener('touchmove', e => {
   if (!dragging) return;
   e.preventDefault();
   const pos = getCanvasPos(e.touches[0]);
-  wmPos.x = Math.max(0, Math.min(1, pos.x / mainCanvas.width));
-  wmPos.y = Math.max(0, Math.min(1, pos.y / mainCanvas.height));
+  updateWmPos(pos.x, pos.y);
   render();
 });
-
 mainCanvas.addEventListener('touchend', () => {
-  if (dragging) {
-    dragging = false;
-    render();
-  }
+  if (dragging) { dragging = false; render(); }
 });
 
-// ==================== Download ====================
-function downloadImage() {
-  if (!imageLoaded) return;
-
-  // Create a full-resolution canvas for download
-  const downCanvas = document.createElement('canvas');
-  downCanvas.width = image.naturalWidth;
-  downCanvas.height = image.naturalHeight;
-  const dCtx = downCanvas.getContext('2d');
-  const cfg = getWatermarkConfig();
-
-  // Draw original at full res
-  dCtx.drawImage(image, 0, 0, downCanvas.width, downCanvas.height);
-
-  // Scale watermark config to full resolution
-  const scaleX = downCanvas.width / mainCanvas.width;
-  const scaleY = downCanvas.height / mainCanvas.height;
-  const scaledFontSize = Math.round(cfg.fontSize * Math.min(scaleX, scaleY));
-
+// ==================== Watermark render function (reusable) ====================
+function applyWatermarkToCanvas(dCtx, dw, dh, wmPos, cfg, scaleFactor) {
+  const scaledFontSize = Math.round(cfg.fontSize * scaleFactor);
   dCtx.font = `${scaledFontSize}px "${cfg.font}"`;
   dCtx.fillStyle = cfg.color;
   dCtx.textAlign = 'center';
   dCtx.textBaseline = 'middle';
   dCtx.globalAlpha = cfg.opacity;
-
-  const dw = downCanvas.width;
-  const dh = downCanvas.height;
 
   if (mode === 'single') {
     const x = wmPos.x * dw;
@@ -697,16 +911,95 @@ function downloadImage() {
       }
     }
   }
+}
+
+// ==================== Download: single ====================
+function downloadCurrent() {
+  if (images.length === 0) return;
+  downloadSingleImage(images[currentIndex]);
+}
+
+function downloadSelected() {
+  const selected = images.filter(i => i.selected);
+  if (selected.length === 0) { showToast('没有选中的图片'); return; }
+  if (selected.length === 1) {
+    downloadSingleImage(selected[0]);
+    return;
+  }
+  downloadAsZip(selected);
+}
+
+function downloadAllZip() {
+  if (images.length === 0) return;
+  downloadAsZip(images);
+}
+
+function downloadSingleImage(item) {
+  const cfg = getWatermarkConfig();
+  const downCanvas = document.createElement('canvas');
+  downCanvas.width = item.img.naturalWidth;
+  downCanvas.height = item.img.naturalHeight;
+  const dCtx = downCanvas.getContext('2d');
+  dCtx.drawImage(item.img, 0, 0);
+
+  const scaleFactor = Math.min(
+    downCanvas.width / mainCanvas.width,
+    downCanvas.height / mainCanvas.height
+  );
+  applyWatermarkToCanvas(dCtx, downCanvas.width, downCanvas.height, item.wmPos, cfg, scaleFactor);
 
   downCanvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'watermarked.png';
+    const baseName = item.name.replace(/\.[^.]+$/, '');
+    a.download = baseName + '_watermarked.png';
     a.click();
     URL.revokeObjectURL(url);
     showToast('下载完成！');
   }, 'image/png');
+}
+
+async function downloadAsZip(itemList) {
+  const overlay = document.getElementById('processingOverlay');
+  const msg = document.getElementById('processingMsg');
+  overlay.style.display = 'flex';
+  msg.textContent = `处理 0 / ${itemList.length}...`;
+
+  const zip = new JSZip();
+  const cfg = getWatermarkConfig();
+
+  for (let i = 0; i < itemList.length; i++) {
+    const item = itemList[i];
+    msg.textContent = `处理 ${i + 1} / ${itemList.length}...`;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = item.img.naturalWidth;
+    canvas.height = item.img.naturalHeight;
+    const dCtx = canvas.getContext('2d');
+    dCtx.drawImage(item.img, 0, 0);
+
+    // Use a reasonable scale factor; watermark is sized relative to display canvas
+    const scaleFactor = Math.min(canvas.width / Math.max(mainCanvas.width, 1), 1);
+    applyWatermarkToCanvas(dCtx, canvas.width, canvas.height, item.wmPos, cfg, scaleFactor);
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const baseName = item.name.replace(/\.[^.]+$/, '');
+    zip.file(baseName + '_watermarked.png', blob);
+  }
+
+  msg.textContent = '正在打包...';
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'watermarked_images.zip';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  overlay.style.display = 'none';
+  showToast(`已完成！共处理 ${itemList.length} 张图片`);
 }
 
 // ==================== Toast ====================
@@ -719,7 +1012,6 @@ function showToast(msg) {
 }
 
 // ==================== Init ====================
-// Ensure initial slider labels match defaults
 document.getElementById('fontSizeLabel').textContent = document.getElementById('wmFontSize').value + 'px';
 document.getElementById('opacityLabel').textContent = parseFloat(document.getElementById('wmOpacity').value).toFixed(2);
 document.getElementById('angleLabel').textContent = document.getElementById('wmAngle').value + '°';
