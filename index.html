@@ -671,12 +671,26 @@ function hDrop(files){const x=files.filter(f=>f.type.startsWith('image/'));if(x.
 function loadFiles(files){
   let done=0;const st=imgs.length,tot=files.length,nw=[];
   files.forEach((file,i)=>{
-    const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
       const name=file.name||`image_${st+i+1}.png`;
-      nw.push({_o:st+i,img,name,sel:true,cfg:{...dcfg(),wmPos:{x:.5,y:.5},text:autoFn?name.replace(/\.[^.]+$/,''):dcfg().text}});
+      const thumb=makeThumb(img);
+      nw.push({_o:st+i,img,name,url,thumb,sel:true,cfg:{...dcfg(),wmPos:{x:.5,y:.5},text:autoFn?name.replace(/\.[^.]+$/,''):dcfg().text}});
       done++;if(done===tot){nw.sort((a,b)=>a._o-b._o);nw.forEach(x=>{delete x._o;imgs.push(x)});onChange();idx=st;closeSettings();requestAnimationFrame(()=>switchTo(idx))}
-    };img.src=e.target.result};r.readAsDataURL(file)
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);done++;if(done===tot&&nw.length){nw.sort((a,b)=>a._o-b._o);nw.forEach(x=>{delete x._o;imgs.push(x)});onChange();idx=st;requestAnimationFrame(()=>switchTo(idx))}};
+    img.src=url
   })
+}
+
+// Generate a small thumbnail data URL (JPEG) for the strip — saves ~100x memory per thumb
+function makeThumb(img){
+  const c=document.createElement('canvas');
+  const S=80;const r=Math.min(S/img.naturalWidth,S/img.naturalHeight,1);
+  c.width=Math.round(img.naturalWidth*r);c.height=Math.round(img.naturalHeight*r);
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',.6)
 }
 
 function onChange(){
@@ -697,7 +711,7 @@ function updThumbs(){
   const ex=thumbStrip.querySelectorAll('.thumb');ex.forEach(t=>t.remove());
   filtered().forEach(({it,i})=>{const d=document.createElement('div');
     d.className='thumb'+(i===idx?' sel':'')+(it.sel?' show-check':'');
-    d.innerHTML=`<img src="${it.img.src}"><span class="tidx">${i+1}</span><button class="tdel">&times;</button><input type="checkbox" class="tchk" ${it.sel?'checked':''}>`;
+    d.innerHTML=`<img src="${it.thumb||it.img.src}"><span class="tidx">${i+1}</span><button class="tdel">&times;</button><input type="checkbox" class="tchk" ${it.sel?'checked':''}>`;
     const ab=thumbStrip.querySelector('.add-thumb');thumbStrip.insertBefore(d,ab);
     d.addEventListener('click',e=>{if(e.target.classList.contains('tdel')){e.stopPropagation();delImg(i);return}if(e.target.classList.contains('tchk')){e.stopPropagation();imgs[i].sel=e.target.checked;d.classList.toggle('show-check',imgs[i].sel);updCnts();return}if(i!==idx)switchTo(i)})
   })
@@ -705,7 +719,7 @@ function updThumbs(){
 
 function updList(){if(!listOpen)return;const sc=$('listScroll'),em=$('listEmpty');sc.innerHTML='';const f=filtered();if(!f.length){em.style.display='block';return}em.style.display='none';
   f.forEach(({it,i})=>{const r=document.createElement('div');r.className='li'+(i===idx?' active':'');
-    r.innerHTML=`<span class="ln">${i+1}</span><div class="lthumb"><img src="${it.img.src}"></div><div class="linfo"><div class="lname">${it.name}</div><div class="ldim">${it.img.naturalWidth}×${it.img.naturalHeight}</div></div><div class="lact"><button onclick="event.stopPropagation();delImg(${i})">×</button></div>`;
+    r.innerHTML=`<span class="ln">${i+1}</span><div class="lthumb"><img src="${it.thumb||it.img.src}"></div><div class="linfo"><div class="lname">${it.name}</div><div class="ldim">${it.img.naturalWidth}×${it.img.naturalHeight}</div></div><div class="lact"><button onclick="event.stopPropagation();delImg(${i})">×</button></div>`;
     r.addEventListener('click',()=>{if(i!==idx)switchTo(i)});sc.appendChild(r)})
 }
 
@@ -726,8 +740,8 @@ function switchTo(i){
   updThumbs();updNav();updList()
 }
 
-function delImg(i){imgs.splice(i,1);if(!imgs.length){onChange();return}if(idx>=imgs.length)idx=imgs.length-1;onChange();loadCfg(imgs[idx].cfg);fitCanvas();render();$('imgTag').textContent=imgs[idx].name;updAf();zoomFit()}
-function resetAll(){imgs=[];idx=0;onChange();fi.value='';loadCfg(dcfg());zoom=1;canvasWrap.style.transform='';$('zLabel').textContent='100%'}
+function delImg(i){const it=imgs[i];if(it&&it.url)URL.revokeObjectURL(it.url);imgs.splice(i,1);if(!imgs.length){onChange();return}if(idx>=imgs.length)idx=imgs.length-1;onChange();loadCfg(imgs[idx].cfg);fitCanvas();render();$('imgTag').textContent=imgs[idx].name;updAf();zoomFit()}
+function resetAll(){imgs.forEach(it=>{if(it.url)URL.revokeObjectURL(it.url)});imgs=[];idx=0;onChange();fi.value='';loadCfg(dcfg());zoom=1;canvasWrap.style.transform='';$('zLabel').textContent='100%'}
 
 // ==================== Zoom ====================
 function setZoom(z){zoom=Math.max(.25,Math.min(3,z));canvasWrap.style.transform=`scale(${zoom})`;$('zLabel').textContent=Math.round(zoom*100)+'%';if(syncZoom&&imgs.length)imgs.forEach(it=>it.cfg.zoom=zoom)}
