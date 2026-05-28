@@ -148,15 +148,42 @@ input[type="file"]{display:none}
 /* ===== Bottom Bar ===== */
 .bottom-bar{flex-shrink:0;background:var(--bg-surface);border-top:1px solid var(--border);z-index:2;box-shadow:0 -1px 4px rgba(0,0,0,.03)}
 .bar-tools{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)}
-.search-wrap{position:relative;flex:1;max-width:200px}
-.search-wrap input{
-  width:100%;padding:6px 8px 6px 26px;font-size:11px;font-family:var(--font);
-  background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
-  color:var(--text);outline:none;transition:border-color .15s;
+.search-wrap{
+  position:relative;display:flex;align-items:center;
+  max-width:180px;transition:max-width .3s ease;
 }
+.search-wrap.expanded{max-width:280px}
+.search-wrap input{
+  width:100%;padding:6px 22px 6px 8px;font-size:11px;font-family:var(--font);
+  background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);outline:none;transition:border-color .15s,padding .3s;
+  opacity:0;transform:scaleX(.8);transform-origin:right;
+  transition:opacity .25s,transform .25s,border-color .15s;
+}
+.search-wrap.expanded input,
+.search-wrap.has-value input{opacity:1;transform:scaleX(1)}
+.search-wrap.expanded input{padding-left:26px}
 .search-wrap input:focus{border-color:var(--accent)}
 .search-wrap input::placeholder{color:var(--text-muted)}
-.search-icon{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;cursor:pointer}
+.search-icon{
+  position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  color:var(--text-muted);font-size:13px;cursor:pointer;z-index:1;
+  width:18px;height:18px;display:flex;align-items:center;justify-content:center;
+  transition:color .15s;
+  /* Magnifying glass via CSS */
+  border:2px solid currentColor;border-radius:50%;
+}
+.search-icon::after{content:'';position:absolute;bottom:-1px;right:-2px;width:6px;height:2px;background:currentColor;border-radius:1px;transform:rotate(45deg);transform-origin:left center}
+.search-icon:hover{color:var(--accent)}
+.search-wrap.expanded .search-icon{left:7px}
+.search-clear{
+  position:absolute;right:5px;top:50%;transform:translateY(-50%);
+  color:var(--text-muted);font-size:14px;cursor:pointer;z-index:1;
+  width:16px;height:16px;display:none;align-items:center;justify-content:center;
+  border-radius:50%;transition:all .12s;
+}
+.search-clear:hover{color:var(--danger);background:rgba(217,92,74,.1)}
+.search-wrap.has-value .search-clear{display:flex}
 .nav-btns{display:flex;gap:2px;align-items:center}
 .nbtn{
   width:26px;height:26px;border:1px solid var(--border);background:var(--bg-surface);
@@ -451,11 +478,14 @@ input[type="file"]{display:none}
   .float-quick{display:flex}
 
   /* Bottom bar: compact */
-  .bar-tools{padding:4px 8px;gap:4px;flex-wrap:wrap}
-  .search-wrap{flex:1;max-width:none;min-width:70px}
-  .search-wrap input{font-size:10px;padding:5px 6px 5px 22px}
+  .bar-tools{padding:4px 8px;gap:3px;flex-wrap:nowrap}
+  .search-wrap{flex:0 0 auto;max-width:none}
+  .search-wrap.expanded{flex:1;max-width:none}
+  .search-wrap input{font-size:10px;height:26px}
   .nav-pos{font-size:9px}
   .nbtn{width:24px;height:24px;font-size:12px}
+  .nav-scroll-btn{display:none} /* hide scroll buttons on mobile — swipe the strip instead */
+  .nav-jump{width:30px}
   .thumb-strip{min-height:46px;padding:4px 8px;gap:3px}
   .thumb,.add-thumb{width:36px;height:36px;min-width:36px}
   .add-thumb{font-size:16px}
@@ -541,21 +571,22 @@ input[type="file"]{display:none}
 
       <div class="bottom-bar" id="bottomBar" style="display:none">
         <div class="bar-tools">
-          <div class="search-wrap">
-            <span class="search-icon" onclick="document.getElementById('imgSearch').focus()">&#x2315;</span>
-            <input type="text" id="imgSearch" placeholder="搜索...">
+          <div class="search-wrap" id="searchWrap">
+            <span class="search-icon" id="searchIcon" onclick="toggleSearch()"></span>
+            <input type="text" id="imgSearch" placeholder="搜索文件名...">
+            <span class="search-clear" id="searchClear" onclick="clearSearch()">&times;</span>
           </div>
           <div class="nav-btns">
-            <button class="nbtn" onclick="thumbStrip.scrollBy({left:-200,behavior:'smooth'})" title="缩略图左移">&laquo;</button>
+            <button class="nbtn nav-scroll-btn" onclick="thumbStrip.scrollBy({left:-200,behavior:'smooth'})" title="缩略图左移">&laquo;</button>
             <button class="nbtn" onclick="navPrev()" title="上一张">&#x2039;</button>
             <span class="nav-pos" id="navPos" onclick="focusJump()">1/1</span>
             <button class="nbtn" onclick="navNext()" title="下一张">&#x203A;</button>
-            <button class="nbtn" onclick="thumbStrip.scrollBy({left:200,behavior:'smooth'})" title="缩略图右移">&raquo;</button>
+            <button class="nbtn nav-scroll-btn" onclick="thumbStrip.scrollBy({left:200,behavior:'smooth'})" title="缩略图右移">&raquo;</button>
           </div>
-          <input type="number" class="nav-jump" id="navJump" min="1" placeholder="#" onkeydown="if(event.key==='Enter')jumpTo()" style="display:none">
           <button class="view-toggle" id="viewToggle" onclick="toggleList()">
             <span class="lidot"><span></span><span></span><span></span><span></span></span>
           </button>
+          <input type="number" class="nav-jump" id="navJump" min="1" placeholder="#" onkeydown="if(event.key==='Enter')jumpTo()" style="display:none">
         </div>
         <div class="thumb-strip" id="thumbStrip">
           <button class="add-thumb" onclick="document.getElementById('fileInput').click()">+</button>
@@ -766,7 +797,6 @@ canvasArea.addEventListener('touchmove',e=>{if(e.touches.length===2&&pDist>0){se
 canvasArea.addEventListener('touchend',()=>{pDist=0});
 
 // ==================== Search & Nav ====================
-function onSearch(){filter=$('imgSearch').value;updThumbs();updList()}
 function navPrev(){if(imgs.length)switchTo((idx-1+imgs.length)%imgs.length)}
 function navNext(){if(imgs.length)switchTo((idx+1)%imgs.length)}
 function focusJump(){const j=$('navJump');j.style.display=j.style.display==='none'?'inline-block':'none';if(j.style.display!=='none'){j.value=idx+1;j.focus();j.select()}}
@@ -987,9 +1017,31 @@ thumbStrip.addEventListener('wheel',e=>{
   thumbStrip.scrollLeft+=e.deltaY;
 },{passive:false});
 
-// Search input — proper event listener with debounce
-$('imgSearch').addEventListener('input',()=>onSearch());
-$('imgSearch').addEventListener('focus',()=>{$('imgSearch').select()});
+// Animated search
+function toggleSearch(){
+  const sw=$('searchWrap'),input=$('imgSearch');
+  sw.classList.toggle('expanded');
+  if(sw.classList.contains('expanded')){input.focus();input.select()}
+  else if(!filter)input.value=''
+}
+function clearSearch(){
+  $('imgSearch').value='';filter='';updThumbs();updList();
+  $('searchWrap').classList.remove('has-value','expanded')
+}
+// Close search on Escape / outside click
+document.addEventListener('click',e=>{
+  const sw=$('searchWrap');
+  if(sw.classList.contains('expanded')&&!sw.contains(e.target)&&!filter){
+    sw.classList.remove('expanded')
+  }
+});
+
+$('imgSearch').addEventListener('input',()=>{
+  filter=$('imgSearch').value;$('searchWrap').classList.toggle('has-value',!!filter);
+  updThumbs();updList()
+});
+$('imgSearch').addEventListener('focus',()=>{$('searchWrap').classList.add('expanded')});
+$('imgSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){$('imgSearch').value='';clearSearch()}});
 
 // ==================== Init ====================
 loadCfg(dcfg());
