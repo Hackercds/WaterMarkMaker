@@ -595,7 +595,13 @@ input[type="file"]{display:none}
             <div class="fg"><label>字号<span class="vl" id="fsLabel">32px</span></label><input type="range" id="wmFontSize" min="12" max="120" value="32" oninput="onFs()"></div>
           </div>
           <div class="fr">
-            <div class="fg"><label>颜色<span class="vl"><button onclick="autoColor()" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;font-family:var(--font)" title="分析图片找到最佳水印颜色">智能配色</button></span></label><input type="color" id="wmColor" value="#ffffff" onchange="saveCfg()"></div>
+            <div class="fg">
+              <label>颜色<span class="vl"><button onclick="autoColor()" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;font-family:var(--font)" title="分析图片找到最佳水印颜色">智能配色</button></span></label>
+              <div style="display:flex;gap:4px;align-items:center">
+                <input type="color" id="wmColor" value="#ffffff" onchange="onColorChange()" style="flex-shrink:0">
+                <input type="text" id="wmColorHex" value="#ffffff" maxlength="7" oninput="onHexInput()" style="flex:1;font-family:var(--font-mono);font-size:11px" placeholder="#000000">
+              </div>
+            </div>
             <div class="fg"><label>不透明度<span class="vl" id="opLabel">0.30</span></label><input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOp()"></div>
           </div>
         </div>
@@ -794,7 +800,7 @@ function loadCfg(cfg){
   document.querySelectorAll('.mtab').forEach(t=>t.classList.toggle('on',t.dataset.mode===cfg.mode));
   $('singleSec').style.display=cfg.mode==='single'?'':'none';$('tileSec').style.display=cfg.mode==='tile'?'':'none';
   $('wmText').value=cfg.text;$('wmFont').value=cfg.font;$('wmFontSize').value=cfg.fontSize;$('fsLabel').textContent=cfg.fontSize+'px';
-  $('wmColor').value=cfg.color;$('wmOpacity').value=cfg.opacity;$('opLabel').textContent=cfg.opacity.toFixed(2);
+  $('wmColor').value=cfg.color;$('wmColorHex').value=cfg.color;$('wmOpacity').value=cfg.opacity;$('opLabel').textContent=cfg.opacity.toFixed(2);
   $('wmAngle').value=cfg.angle;$('aLabel').textContent=cfg.angle+'°';
   $('wmPosX').value=Math.round(cfg.wmPos.x*100);$('wmPosY').value=Math.round(cfg.wmPos.y*100);
   $('pxLabel').textContent=Math.round(cfg.wmPos.x*100)+'%';$('pyLabel').textContent=Math.round(cfg.wmPos.y*100)+'%';
@@ -806,6 +812,8 @@ function loadCfg(cfg){
   if(!syncZoom){zoom=cfg.zoom||1;canvasWrap.style.transform=`scale(${zoom})`;$('zLabel').textContent=Math.round(zoom*100)+'%'}
 }
 function saveCfg(){if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);render()}
+function onColorChange(){$('wmColorHex').value=$('wmColor').value;saveCfg()}
+function onHexInput(){const v=$('wmColorHex').value;if(/^#[0-9a-fA-F]{6}$/.test(v)){$('wmColor').value=v;saveCfg()}}
 
 function applyToAll(type){
   if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);const s=imgs[idx].cfg;
@@ -891,7 +899,7 @@ function autoColor(){
   else if(lum>180){cr=0;cg=0;cb=0}
   else{cr=255-R;cg=255-G;cb=255-B} // inverse color for mid-tone images
   const hex='#'+[cr,cg,cb].map(v=>v.toString(16).padStart(2,'0')).join('');
-  $('wmColor').value=hex;
+  $('wmColor').value=hex;$('wmColorHex').value=hex;
   // Also suggest opacity: darker watermarks look better at lower opacity
   const suggestedOp=lum<100?.35:lum>180?.25:.3;
   $('wmOpacity').value=suggestedOp;$('opLabel').textContent=suggestedOp.toFixed(2);
@@ -971,6 +979,13 @@ sidebar.addEventListener('touchend',e=>{
 
 // ==================== Toast ====================
 function showToast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2000)}
+
+// Mouse wheel → horizontal scroll on thumbnail strip
+thumbStrip.addEventListener('wheel',e=>{
+  if(Math.abs(e.deltaX)>Math.abs(e.deltaY))return; // let native horizontal scroll pass
+  e.preventDefault();
+  thumbStrip.scrollLeft+=e.deltaY;
+},{passive:false});
 
 // ==================== Init ====================
 loadCfg(dcfg());
