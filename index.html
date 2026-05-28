@@ -595,7 +595,7 @@ input[type="file"]{display:none}
             <div class="fg"><label>字号<span class="vl" id="fsLabel">32px</span></label><input type="range" id="wmFontSize" min="12" max="120" value="32" oninput="onFs()"></div>
           </div>
           <div class="fr">
-            <div class="fg"><label>颜色</label><input type="color" id="wmColor" value="#ffffff" onchange="saveCfg()"></div>
+            <div class="fg"><label>颜色<span class="vl"><button onclick="autoColor()" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;font-family:var(--font)" title="分析图片找到最佳水印颜色">智能配色</button></span></label><input type="color" id="wmColor" value="#ffffff" onchange="saveCfg()"></div>
             <div class="fg"><label>不透明度<span class="vl" id="opLabel">0.30</span></label><input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOp()"></div>
           </div>
         </div>
@@ -607,7 +607,10 @@ input[type="file"]{display:none}
             <div class="fg"><label>垂直<span class="vl" id="pyLabel">50%</span></label><input type="range" id="wmPosY" min="0" max="100" value="50" oninput="onPy()"></div>
           </div>
           <p class="hint">在图片上拖动水印实时调整位置 &middot; Ctrl+滚轮缩放</p>
-          <div class="sel-bar" style="margin-top:5px"><label><input type="checkbox" id="syncPos"> 所有图片统一位置</label></div>
+          <div class="sel-bar" style="margin-top:5px;flex-wrap:wrap;gap:8px">
+            <label><input type="checkbox" id="syncPos"> 所有图片统一位置</label>
+            <label><input type="checkbox" id="constrainFit" onchange="constrainFit=this.checked;render()"> 保证完整显示</label>
+          </div>
         </div>
         <div class="sec" id="tileSec" style="display:none">
           <div class="sec-title">平铺设置<span class="sa"><button onclick="applyToAll('tile')">全部应用</button></span></div>
@@ -650,7 +653,7 @@ input[type="file"]{display:none}
 <script>
 // ==================== State ====================
 function dcfg(){return{mode:'single',text:'我的水印',font:'Microsoft YaHei',fontSize:32,color:'#ffffff',opacity:.3,wmPos:{x:.5,y:.5},angle:-30,tileCols:4,tileRows:3,tileAngle:-30,tileOffsetX:0,tileOffsetY:0,zoom:1}}
-let imgs=[],idx=0,syncPos=false,syncZoom=false,dragging=false,zoom=1,listOpen=false,filter='',autoFn=false;
+let imgs=[],idx=0,syncPos=false,syncZoom=false,constrainFit=false,dragging=false,zoom=1,listOpen=false,filter='',autoFn=false;
 let touchStartY=0,touchStartTime=0,isSwiping=false;
 
 const $=s=>document.getElementById(s);
@@ -832,8 +835,8 @@ function onAng(){$('aLabel').textContent=$('wmAngle').value+'°';saveCfg()}
 function onTc(){$('cLabel').textContent=$('tileCols').value;$('rLabel').textContent=$('tileRows').value;saveCfg()}
 function onTa(){$('taLabel').textContent=$('tileAngle').value+'°';saveCfg()}
 function onTo(){$('oxLabel').textContent=$('tileOffsetX').value+'%';$('oyLabel').textContent=$('tileOffsetY').value+'%';saveCfg()}
-function onPx(){$('pxLabel').textContent=$('wmPosX').value+'%';saveCfg()}
-function onPy(){$('pyLabel').textContent=$('wmPosY').value+'%';saveCfg()}
+function onPx(){if(constrainFit){const pos=clampToFit({x:+$('wmPosX').value/100,y:+$('wmPosY').value/100});$('wmPosX').value=Math.round(pos.x*100)}$('pxLabel').textContent=$('wmPosX').value+'%';saveCfg()}
+function onPy(){if(constrainFit){const pos=clampToFit({x:+$('wmPosX').value/100,y:+$('wmPosY').value/100});$('wmPosY').value=Math.round(pos.y*100)}$('pyLabel').textContent=$('wmPosY').value+'%';saveCfg()}
 ['wmFontSize','wmOpacity','wmAngle','tileCols','tileRows','tileAngle','tileOffsetX','tileOffsetY','wmPosX','wmPosY'].forEach(id=>{const e=$(id);if(!e)return;const fn={wmFontSize:onFs,wmOpacity:onOp,wmAngle:onAng,tileCols:onTc,tileRows:onTc,tileAngle:onTa,tileOffsetX:onTo,tileOffsetY:onTo,wmPosX:onPx,wmPosY:onPy}[id];if(fn)e.addEventListener('input',fn)});
 
 function toggleSelectAll(){const c=$('selectAll').checked;imgs.forEach(i=>i.sel=c);updThumbs();updCnts()}
@@ -852,7 +855,48 @@ function rTile(c,cw,ch){const cols=c.tileCols,rows=c.tileRows,r=(c.tileAngle*Mat
 // ==================== Canvas drag ====================
 function cvPos(e){const r=mc.getBoundingClientRect();return{x:(e.clientX-r.left)*mc.width/r.width,y:(e.clientY-r.top)*mc.height/r.height}}
 function nearWm(cx,cy){if(!imgs.length)return false;const c=imgs[idx].cfg;ctx.save();ctx.font=`${c.fontSize}px "${c.font}"`;const m=ctx.measureText(c.text);ctx.restore();return Math.abs(cx-c.wmPos.x*mc.width)<m.width*.6&&Math.abs(cy-c.wmPos.y*mc.height)<c.fontSize*.7}
-function setWmPos(cx,cy){const p={x:Math.max(0,Math.min(1,cx/mc.width)),y:Math.max(0,Math.min(1,cy/mc.height))};if(syncPos)imgs.forEach(it=>it.cfg.wmPos={...p});else imgs[idx].cfg.wmPos=p;$('wmPosX').value=Math.round(p.x*100);$('wmPosY').value=Math.round(p.y*100);$('pxLabel').textContent=Math.round(p.x*100)+'%';$('pyLabel').textContent=Math.round(p.y*100)+'%'}
+function setWmPos(cx,cy){let p={x:Math.max(0,Math.min(1,cx/mc.width)),y:Math.max(0,Math.min(1,cy/mc.height))};if(constrainFit)p=clampToFit(p);if(syncPos)imgs.forEach(it=>it.cfg.wmPos={...p});else imgs[idx].cfg.wmPos=p;$('wmPosX').value=Math.round(p.x*100);$('wmPosY').value=Math.round(p.y*100);$('pxLabel').textContent=Math.round(p.x*100)+'%';$('pyLabel').textContent=Math.round(p.y*100)+'%'}
+
+// Clamp position so rotated text bounding box stays fully inside the image
+function clampToFit(pos){
+  if(!imgs.length)return pos;
+  const c=imgs[idx].cfg,cw=mc.width,ch=mc.height;
+  ctx.save();ctx.font=`${c.fontSize}px "${c.font}"`;
+  const m=ctx.measureText(c.text);ctx.restore();
+  const tw=m.width,th=c.fontSize,rad=Math.abs(c.angle*Math.PI/180);
+  const rw=Math.abs(tw*Math.cos(rad))+Math.abs(th*Math.sin(rad));
+  const rh=Math.abs(tw*Math.sin(rad))+Math.abs(th*Math.cos(rad));
+  const mx=rw/(2*cw),my=rh/(2*ch);
+  return{x:Math.max(mx,Math.min(1-mx,pos.x)),y:Math.max(my,Math.min(1-my,pos.y))}
+}
+
+// Auto-detect best watermark color by sampling the image
+function autoColor(){
+  const it=imgs[idx];if(!it)return;
+  const img=it.img;const S=80;
+  const c=document.createElement('canvas');
+  const r=Math.min(S/img.naturalWidth,S/img.naturalHeight);
+  c.width=Math.round(img.naturalWidth*r);c.height=Math.round(img.naturalHeight*r);
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  const data=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+  let R=0,G=0,B=0,n=0;
+  // Sample every 4th pixel
+  for(let i=0;i<data.length;i+=16){R+=data[i];G+=data[i+1];B+=data[i+2];n++}
+  R=Math.round(R/n);G=Math.round(G/n);B=Math.round(B/n);
+  // Perceived luminance
+  const lum=0.299*R+0.587*G+0.114*B;
+  // Pick contrasting color: if dark image → bright text, if bright → dark
+  let cr,cg,cb;
+  if(lum<100){cr=255;cg=255;cb=255}
+  else if(lum>180){cr=0;cg=0;cb=0}
+  else{cr=255-R;cg=255-G;cb=255-B} // inverse color for mid-tone images
+  const hex='#'+[cr,cg,cb].map(v=>v.toString(16).padStart(2,'0')).join('');
+  $('wmColor').value=hex;
+  // Also suggest opacity: darker watermarks look better at lower opacity
+  const suggestedOp=lum<100?.35:lum>180?.25:.3;
+  $('wmOpacity').value=suggestedOp;$('opLabel').textContent=suggestedOp.toFixed(2);
+  saveCfg();showToast(`智能配色 → ${hex}（${lum<100?'明亮':lum>180?'深色':'对比'}模式）`)
+}
 
 mc.addEventListener('mousedown',e=>{if(!imgs.length||imgs[idx].cfg.mode!=='single')return;const p=cvPos(e);if(nearWm(p.x,p.y)){dragging=true;mc.style.cursor='grabbing';e.preventDefault()}else{setWmPos(p.x,p.y);render()}});
 mc.addEventListener('mousemove',e=>{if(!imgs.length||imgs[idx].cfg.mode!=='single')return;const p=cvPos(e);if(dragging){setWmPos(p.x,p.y);render()}else mc.style.cursor=nearWm(p.x,p.y)?'grab':'crosshair'});
