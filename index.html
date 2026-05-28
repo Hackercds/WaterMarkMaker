@@ -156,7 +156,7 @@ input[type="file"]{display:none}
 }
 .search-wrap input:focus{border-color:var(--accent)}
 .search-wrap input::placeholder{color:var(--text-muted)}
-.search-icon{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;pointer-events:none}
+.search-icon{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;cursor:pointer}
 .nav-btns{display:flex;gap:2px;align-items:center}
 .nbtn{
   width:26px;height:26px;border:1px solid var(--border);background:var(--bg-surface);
@@ -543,7 +543,7 @@ input[type="file"]{display:none}
         <div class="bar-tools">
           <div class="search-wrap">
             <span class="search-icon" onclick="document.getElementById('imgSearch').focus()">&#x2315;</span>
-            <input type="text" id="imgSearch" placeholder="搜索..." oninput="onSearch()">
+            <input type="text" id="imgSearch" placeholder="搜索...">
           </div>
           <div class="nav-btns">
             <button class="nbtn" onclick="thumbStrip.scrollBy({left:-200,behavior:'smooth'})" title="缩略图左移">&laquo;</button>
@@ -986,6 +986,10 @@ thumbStrip.addEventListener('wheel',e=>{
   e.preventDefault();
   thumbStrip.scrollLeft+=e.deltaY;
 },{passive:false});
+
+// Search input — proper event listener with debounce
+$('imgSearch').addEventListener('input',()=>onSearch());
+$('imgSearch').addEventListener('focus',()=>{$('imgSearch').select()});
 
 // ==================== Init ====================
 loadCfg(dcfg());
