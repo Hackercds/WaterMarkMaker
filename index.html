@@ -330,8 +330,9 @@ input[type="file"]{display:none}
 }
 .cp-cell:hover{transform:scale(1.3);z-index:1;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .cp-cell.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
-/* Quick color swatches */
-.color-quick{display:flex;gap:4px;margin-bottom:4px}
+/* Quick color swatches (HarmonyOS fallback, shown on touch devices) */
+.color-quick{display:flex;gap:4px;margin-bottom:4px;align-items:center}
+.cq-label{font-size:9px;color:var(--text-muted);margin-right:2px;white-space:nowrap}
 .cq-swatch{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);cursor:pointer;flex-shrink:0;transition:all .12s}
 .cq-swatch:hover{transform:scale(1.2);border-color:var(--accent)}
 .cq-swatch.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
@@ -534,6 +535,7 @@ input[type="file"]{display:none}
   .fg input[type="range"]::-webkit-slider-thumb{width:24px;height:24px}
   .btn,.btn-dl,.btn-ol{min-height:40px}
   .mtab{padding:9px}
+  .color-quick{display:flex!important} /* show quick swatches on touch devices */
 }
 </style>
 </head>
@@ -645,7 +647,8 @@ input[type="file"]{display:none}
             <div class="fg">
               <label>颜色<span class="vl"><button onclick="autoColor()" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;font-family:var(--font)" title="分析图片找到最佳水印颜色">智能配色</button></span></label>
               <div class="color-palette" id="colorPalette"></div>
-              <div class="color-quick" id="colorQuick">
+              <div class="color-quick" id="colorQuick" style="display:none">
+                <span class="cq-label">备选色</span>
                 <span class="cq-swatch" style="background:#fff;border:1px solid #ccc" data-color="#ffffff"></span>
                 <span class="cq-swatch" style="background:#000" data-color="#000000"></span>
                 <span class="cq-swatch" style="background:#e94560" data-color="#e94560"></span>
