@@ -150,36 +150,27 @@ input[type="file"]{display:none}
 .bar-tools{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)}
 .search-wrap{
   position:relative;display:flex;align-items:center;
-  width:34px;transition:width .25s ease;
-  overflow:hidden;
+  flex:1;max-width:160px;
 }
-.search-wrap.expanded{width:180px}
 .search-wrap input{
-  width:100%;padding:6px 24px 6px 26px;font-size:11px;font-family:var(--font);
+  width:100%;padding:6px 6px 6px 26px;font-size:11px;font-family:var(--font);
   background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
   color:var(--text);outline:none;transition:border-color .15s;
-  visibility:hidden;
 }
-.search-wrap.expanded input{visibility:visible}
-.search-wrap.has-value input{visibility:visible}
 .search-wrap input:focus{border-color:var(--accent)}
 .search-wrap input::placeholder{color:var(--text-muted)}
 .search-icon{
-  position:absolute;left:8px;top:50%;transform:translateY(-50%);
-  color:var(--text-muted);font-size:13px;cursor:pointer;z-index:2;
-  width:18px;height:18px;display:flex;align-items:center;justify-content:center;
-  transition:color .15s;
-  border:2px solid currentColor;border-radius:50%;
+  position:absolute;left:7px;top:50%;transform:translateY(-50%);
+  color:var(--text-muted);font-size:12px;pointer-events:none;z-index:1;
 }
-.search-icon::after{content:'';position:absolute;bottom:-1px;right:-2px;width:6px;height:2px;background:currentColor;border-radius:1px;transform:rotate(45deg);transform-origin:left center}
-.search-icon:hover{color:var(--accent)}
+.search-icon::before{content:'\2315'}
 .search-clear{
   position:absolute;right:4px;top:50%;transform:translateY(-50%);
-  color:var(--text-muted);font-size:14px;cursor:pointer;z-index:2;
+  color:var(--text-muted);font-size:13px;cursor:pointer;
   width:16px;height:16px;display:none;align-items:center;justify-content:center;
   border-radius:50%;transition:all .12s;
 }
-.search-clear:hover{color:var(--danger);background:rgba(217,92,74,.1)}
+.search-clear:hover{color:var(--danger)}
 .search-wrap.has-value .search-clear{display:flex}
 .nav-btns{display:flex;gap:2px;align-items:center}
 .nbtn{
@@ -582,8 +573,8 @@ input[type="file"]{display:none}
       <div class="bottom-bar" id="bottomBar" style="display:none">
         <div class="bar-tools">
           <div class="search-wrap" id="searchWrap">
-            <span class="search-icon" id="searchIcon" onclick="toggleSearch()"></span>
-            <input type="text" id="imgSearch" placeholder="搜索文件名...">
+            <span class="search-icon"></span>
+            <input type="text" id="imgSearch" placeholder="搜索...">
             <span class="search-clear" id="searchClear" onclick="clearSearch()">&times;</span>
           </div>
           <div class="nav-btns">
@@ -930,19 +921,20 @@ function rSingle(c,cw,ch,fs){const x=c.wmPos.x*cw,y=c.wmPos.y*ch,r=(c.angle*Math
   if(!dragging){ctx.strokeStyle='rgba(0,0,0,.15)';ctx.lineWidth=1;ctx.setLineDash([3,3]);const m=ctx.measureText(c.text);ctx.strokeRect(-Math.max(m.width*.55,fs*.3),-fs*.65,Math.max(m.width*1.1,fs*.6),fs*1.3);ctx.setLineDash([])}ctx.restore()}
 function rTile(c,cw,ch,fs){const cols=c.tileCols,rows=c.tileRows,r=(c.tileAngle*Math.PI)/180,cellW=cw/cols,cellH=ch/rows,ox=c.tileOffsetX*cellW,oy=c.tileOffsetY*cellH;for(let row=-2;row<rows+2;row++)for(let col=-2;col<cols+2;col++){ctx.save();ctx.translate(col*cellW+cellW/2+ox,row*cellH+cellH/2+oy);ctx.rotate(r);ctx.fillText(c.text,0,0);ctx.restore()}}
 
-// Calculate max font size so rotated text fits inside the image (single mode)
+// Iteratively find max font size where rotated text fits in image
 function calcMaxFontSize(cfg,cw,ch){
-  // Get width-to-fontSize ratio from measureText
-  ctx.save();ctx.font=`${cfg.fontSize}px "${cfg.font}"`;const m=ctx.measureText(cfg.text);ctx.restore();
-  const k=m.width/cfg.fontSize; // width-per-fontSize ratio
-  const rad=Math.abs(cfg.angle*Math.PI/180);
-  const ck=Math.abs(k*Math.cos(rad)),sk=Math.abs(k*Math.sin(rad));
-  const c1=Math.abs(Math.cos(rad)),s1=Math.abs(Math.sin(rad));
-  // Text bounding box size at fontSize=1:
-  const denomW=ck+s1,denomH=sk+c1;
-  if(denomW<=0||denomH<=0)return cfg.fontSize;
-  const maxByW=cw/denomW,maxByH=ch/denomH;
-  return Math.min(maxByW,maxByH)
+  let fs=cfg.fontSize;
+  ctx.save();
+  for(let t=0;t<30;t++){
+    ctx.font=`${fs}px "${cfg.font}"`;const m=ctx.measureText(cfg.text);
+    const rad=Math.abs(cfg.angle*Math.PI/180);
+    const rw=Math.abs(m.width*Math.cos(rad))+Math.abs(fs*Math.sin(rad));
+    const rh=Math.abs(m.width*Math.sin(rad))+Math.abs(fs*Math.cos(rad));
+    if(rw<=cw&&rh<=ch)break;
+    fs=Math.max(8,fs-Math.ceil(fs*0.05+0.5));
+  }
+  ctx.restore();
+  return fs
 }
 
 // ==================== Canvas drag ====================
@@ -1003,13 +995,9 @@ mc.addEventListener('touchend',()=>{if(dragging){dragging=false;render()}});
 function applyWm(dCtx,dw,dh,c,sf){
   let fs=Math.round(c.fontSize*sf);
   if(constrainFit&&c.mode==='single'){
-    // Recalculate max font for full-res download canvas
-    dCtx.save();dCtx.font=`${fs}px "${c.font}"`;const m=dCtx.measureText(c.text);dCtx.restore();
-    const k=m.width/fs,rad=Math.abs(c.angle*Math.PI/180);
-    const denomW=Math.abs(k*Math.cos(rad))+Math.abs(Math.sin(rad));
-    const denomH=Math.abs(k*Math.sin(rad))+Math.abs(Math.cos(rad));
-    const maxF=denomW>0&&denomH>0?Math.min(dw/denomW,dh/denomH):fs;
-    if(maxF<fs)fs=Math.max(8,Math.floor(maxF));
+    let dfs=fs;
+    for(let t=0;t<30;t++){dCtx.font=`${dfs}px "${c.font}"`;const m2=dCtx.measureText(c.text);const rad=Math.abs(c.angle*Math.PI/180);if(Math.abs(m2.width*Math.cos(rad))+Math.abs(dfs*Math.sin(rad))<=dw&&Math.abs(m2.width*Math.sin(rad))+Math.abs(dfs*Math.cos(rad))<=dh)break;dfs=Math.max(8,dfs-Math.ceil(dfs*.05+.5))}
+    if(dfs<fs)fs=dfs;
   }
   dCtx.font=`${fs}px "${c.font}"`;dCtx.fillStyle=c.color;dCtx.textAlign='center';dCtx.textBaseline='middle';dCtx.globalAlpha=c.opacity;
   if(c.mode==='single'){dCtx.save();dCtx.translate(c.wmPos.x*dw,c.wmPos.y*dh);dCtx.rotate(c.angle*Math.PI/180);dCtx.fillText(c.text,0,0);dCtx.restore()}
@@ -1085,31 +1073,12 @@ thumbStrip.addEventListener('wheel',e=>{
   thumbStrip.scrollLeft+=e.deltaY;
 },{passive:false});
 
-// Animated search
-function toggleSearch(){
-  const sw=$('searchWrap'),input=$('imgSearch');
-  sw.classList.toggle('expanded');
-  if(sw.classList.contains('expanded')){input.focus();input.select()}
-  else if(!filter)input.value=''
-}
-function clearSearch(){
-  $('imgSearch').value='';filter='';updThumbs();updList();
-  $('searchWrap').classList.remove('has-value','expanded')
-}
-// Close search on Escape / outside click
-document.addEventListener('click',e=>{
-  const sw=$('searchWrap');
-  if(sw.classList.contains('expanded')&&!sw.contains(e.target)&&!filter){
-    sw.classList.remove('expanded')
-  }
-});
-
+// Search
+function clearSearch(){$('imgSearch').value='';filter='';$('searchWrap').classList.remove('has-value');updThumbs();updList()}
 $('imgSearch').addEventListener('input',()=>{
-  filter=$('imgSearch').value;$('searchWrap').classList.toggle('has-value',!!filter);
-  updThumbs();updList()
+  filter=$('imgSearch').value.toLowerCase();$('searchWrap').classList.toggle('has-value',!!filter);updThumbs();updList()
 });
-$('imgSearch').addEventListener('focus',()=>{$('searchWrap').classList.add('expanded')});
-$('imgSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){$('imgSearch').value='';clearSearch()}});
+$('imgSearch').addEventListener('keydown',e=>{if(e.key==='Escape')clearSearch()});
 
 // ==================== Init ====================
 loadCfg(dcfg());
