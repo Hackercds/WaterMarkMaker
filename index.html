@@ -350,6 +350,9 @@ input[type="file"]{display:none}
 .af-bar label{font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer}
 .af-bar input[type="checkbox"]{accent-color:var(--accent)}
 .af-hint{font-size:9px;color:var(--accent);font-family:var(--font-mono)}
+.af-mode{font-size:9px;padding:1px 6px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:var(--font);transition:all .12s;opacity:.4}
+.af-mode.on{opacity:1;border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
+.af-mode:hover:not(.on){opacity:.7}
 
 /* Buttons */
 .btn{
@@ -619,8 +622,11 @@ input[type="file"]{display:none}
           <div class="sec-title">水印文字<span class="sa"><button onclick="applyToAll('text')">全部应用</button></span></div>
           <div class="fg"><input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="saveCfg()"></div>
           <div class="af-bar">
-            <label><input type="checkbox" id="autoFilename" onchange="onAutoFn()"> 使用文件名作为水印</label>
-            <span class="af-hint" id="afHint"></span>
+            <label><input type="checkbox" id="autoFilename" onchange="onAutoFn()"> 文件名作为水印</label>
+            <div style="display:flex;gap:2px">
+              <button class="af-mode" id="afEach" onclick="setAfMode('each')" title="每张图用各自的文件名">各自</button>
+              <button class="af-mode" id="afAll" onclick="setAfMode('all')" title="所有图统一用当前文件名">统一</button>
+            </div>
           </div>
           <div class="fr" style="margin-top:7px">
             <div class="fg"><label>字体</label><select id="wmFont" onchange="saveCfg()"><option value="Microsoft YaHei" selected>微软雅黑</option><option value="PingFang SC">苹方</option><option value="SimHei">黑体</option><option value="SimSun">宋体</option><option value="KaiTi">楷体</option><option value="Arial">Arial</option></select></div>
@@ -703,7 +709,7 @@ input[type="file"]{display:none}
 <script>
 // ==================== State ====================
 function dcfg(){return{mode:'single',text:'我的水印',font:'Microsoft YaHei',fontSize:32,color:'#ffffff',opacity:.3,wmPos:{x:.5,y:.5},angle:-30,tileCols:4,tileRows:3,tileAngle:-30,tileOffsetX:0,tileOffsetY:0,zoom:1}}
-let imgs=[],idx=0,syncPos=false,syncZoom=false,constrainFit=false,dragging=false,zoom=1,listOpen=false,filter='',autoFn=false;
+let imgs=[],idx=0,syncPos=false,syncZoom=false,constrainFit=false,dragging=false,zoom=1,listOpen=false,filter='',autoFn=false,afMode='each';
 let touchStartY=0,touchStartTime=0,isSwiping=false;
 
 const $=s=>document.getElementById(s);
@@ -826,8 +832,24 @@ document.addEventListener('keydown',e=>{
 });
 
 // ==================== Auto filename ====================
-function onAutoFn(){autoFn=$('autoFilename').checked;if(autoFn){imgs.forEach(it=>{it.cfg.text=it.name.replace(/\.[^.]+$/,'')});if(imgs.length){loadCfg(imgs[idx].cfg);render()}}updAf()}
-function updAf(){if(!autoFn||!imgs.length){$('afHint').textContent='';return}$('afHint').textContent=imgs[idx].name.replace(/\.[^.]+$/,'')}
+function setAfMode(m){
+  afMode=m;$('afEach').classList.toggle('on',m==='each');$('afAll').classList.toggle('on',m==='all');
+  if(autoFn&&imgs.length){onAutoFn()}
+}
+function onAutoFn(){
+  autoFn=$('autoFilename').checked;
+  $('afEach').style.display=autoFn?'':'none';$('afAll').style.display=autoFn?'':'none';
+  if(autoFn){
+    if(afMode==='all'){const cur=imgs[idx].name.replace(/\.[^.]+$/,'');imgs.forEach(it=>{it.cfg.text=cur})}
+    else{imgs.forEach(it=>{it.cfg.text=it.name.replace(/\.[^.]+$/,'')})}
+    if(imgs.length){loadCfg(imgs[idx].cfg);render()}
+  }
+  updAf()
+}
+function updAf(){
+  if(!autoFn||!imgs.length){$('afHint').textContent='';return}
+  $('afHint').textContent=afMode==='all'?'统一: '+imgs[idx].name.replace(/\.[^.]+$/,''):'各自: '+imgs[idx].name.replace(/\.[^.]+$/,'')
+}
 
 // ==================== Config sync ====================
 function saveCfgTo(cfg){
@@ -1081,7 +1103,7 @@ $('imgSearch').addEventListener('input',()=>{
 $('imgSearch').addEventListener('keydown',e=>{if(e.key==='Escape')clearSearch()});
 
 // ==================== Init ====================
-loadCfg(dcfg());
+loadCfg(dcfg());$('afEach').classList.add('on');
 </script>
 </body>
 </html>
