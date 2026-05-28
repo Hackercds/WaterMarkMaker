@@ -243,28 +243,28 @@ input[type="file"]{display:none}
 
 /* ===== Sidebar ===== */
 .sidebar{
-  width:322px;min-width:322px;background:var(--bg-surface);
+  width:296px;min-width:296px;background:var(--bg-surface);
   border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;
   box-shadow:-1px 0 8px rgba(0,0,0,.03);
 }
-.side-scroll{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.side-scroll{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
 .side-scroll::-webkit-scrollbar{width:3px}
 .side-scroll::-webkit-scrollbar-track{background:transparent}
 .side-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
 /* Sections */
 .sec{
-  background:var(--bg-raised);border-radius:var(--radius);padding:12px;
+  background:var(--bg-raised);border-radius:var(--radius);padding:10px;
   border:1px solid var(--border);box-shadow:var(--shadow-sm);
 }
 .sec-title{
-  font-size:10px;color:var(--text-muted);margin-bottom:9px;font-weight:600;
+  font-size:10px;color:var(--text-muted);margin-bottom:7px;font-weight:600;
   text-transform:uppercase;letter-spacing:.07em;
   display:flex;align-items:center;justify-content:space-between;
 }
-.sec-title .sa{display:flex;gap:3px}
+.sec-title .sa{display:flex;gap:2px}
 .sec-title .sa button{
-  font-size:9px;padding:2px 8px;border-radius:var(--radius-sm);
+  font-size:9px;padding:2px 6px;border-radius:var(--radius-sm);
   border:1px solid var(--border);background:transparent;color:var(--text-muted);
   cursor:pointer;text-transform:uppercase;letter-spacing:.04em;transition:all .12s;
 }
@@ -281,7 +281,7 @@ input[type="file"]{display:none}
 .mtab:hover:not(.on){color:var(--text);background:var(--accent-glow)}
 
 /* Form */
-.fg{margin-bottom:7px}.fg:last-child{margin-bottom:0}
+.fg{margin-bottom:6px}.fg:last-child{margin-bottom:0}
 .fg label{
   display:flex;align-items:center;justify-content:space-between;
   font-size:11px;color:var(--text-dim);margin-bottom:3px;font-weight:500;
@@ -314,7 +314,7 @@ input[type="file"]{display:none}
 }
 .sel-bar label{cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
 .sel-bar input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
-.hint{font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.5}
+.hint{font-size:9px;color:var(--text-muted);margin-top:4px;line-height:1.4}
 .af-bar{
   display:flex;align-items:center;justify-content:space-between;
   margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
@@ -334,21 +334,29 @@ input[type="file"]{display:none}
 .btn-sec{background:var(--bg-surface);color:var(--text-dim);border:1px solid var(--border)}
 .btn-sec:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
 .btn-dl{
-  flex:1;padding:9px 8px;background:var(--accent);color:#fff;
-  font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-sm);
+  flex:1;padding:8px 6px;background:var(--accent);color:#fff;
+  font-size:11px;font-weight:600;letter-spacing:.02em;border-radius:var(--radius-sm);
   border:none;cursor:pointer;font-family:var(--font);
-  box-shadow:0 2px 6px rgba(212,129,94,.2);
+  box-shadow:0 1px 4px rgba(212,129,94,.2);
 }
-.btn-dl:hover{background:var(--accent-hover);box-shadow:0 3px 10px rgba(212,129,94,.3)}
+.btn-dl:hover{background:var(--accent-hover)}
 .btn-dl:disabled{background:var(--bg-input);color:var(--text-muted);cursor:not-allowed;box-shadow:none}
+.btn-dl.primary{padding:9px 8px;font-size:12px;box-shadow:0 2px 6px rgba(212,129,94,.25)}
+.btn-dl.primary:hover{box-shadow:0 3px 10px rgba(212,129,94,.35)}
 .btn-ol{
-  flex:1;padding:9px 8px;background:transparent;border:1.5px solid var(--accent);
-  color:var(--accent);font-size:12px;font-weight:600;letter-spacing:.03em;
+  flex:1;padding:8px 6px;background:transparent;border:1.5px solid var(--accent);
+  color:var(--accent);font-size:11px;font-weight:600;letter-spacing:.02em;
   border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font);
 }
 .btn-ol:hover{background:var(--accent-glow)}
 .btn-ol:disabled{border-color:var(--border);color:var(--text-muted);cursor:not-allowed}
-.dl-grp{display:flex;gap:6px}
+.btn-ghost{
+  width:100%;padding:7px;background:transparent;border:none;
+  color:var(--text-muted);font-size:11px;cursor:pointer;font-family:var(--font);
+  border-radius:var(--radius-sm);transition:all .12s;
+}
+.btn-ghost:hover{color:var(--danger);background:rgba(217,92,74,.06)}
+.dl-grp{display:flex;gap:4px}
 
 /* Processing */
 .proc-overlay{
@@ -402,7 +410,7 @@ input[type="file"]{display:none}
 /* ===== TABLET (<900px) ===================== */
 /* =========================================== */
 @media(max-width:899px){
-  .sidebar{width:280px;min-width:280px}
+  .sidebar{width:260px;min-width:260px}
   .bar-tools{padding:5px 10px;gap:6px}
   .search-wrap{max-width:150px}
   .thumb-strip{min-height:50px;padding:5px 10px;gap:4px}
@@ -572,10 +580,7 @@ input[type="file"]{display:none}
             <button class="mtab" data-mode="tile" onclick="switchMode('tile')">平铺填充</button>
           </div>
         </div>
-        <div class="sec" style="border-color:var(--accent);border-width:1.5px;background:var(--accent-glow)">
-          <button class="btn btn-pri" onclick="applyAllSettings()" style="width:100%;padding:10px;font-size:13px;letter-spacing:.04em">一键应用当前设置到全部图片</button>
-          <p style="font-size:9px;color:var(--text-muted);text-align:center;margin-top:5px">将水印模式、文字、位置、平铺等全部设置复制到所有图片</p>
-        </div>
+        <button class="btn btn-pri" onclick="applyAllSettings()" style="width:100%;padding:9px;font-size:12px;letter-spacing:.03em;margin-bottom:-2px">一键应用当前设置到全部图片</button>
         <div class="sec">
           <div class="sec-title">水印文字<span class="sa"><button onclick="applyToAll('text')">全部应用</button></span></div>
           <div class="fg"><input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="saveCfg()"></div>
@@ -614,20 +619,21 @@ input[type="file"]{display:none}
             <div class="fg"><label>垂直偏移<span class="vl" id="oyLabel">0%</span></label><input type="range" id="tileOffsetY" min="-50" max="50" value="0" oninput="onTo()"></div>
           </div>
         </div>
-        <div class="sel-bar">
-          <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> 全选</label>
-          <span style="flex:1"></span>
-          <span id="selCnt" style="color:var(--accent);font-family:var(--font-mono)">0</span>
-          <span style="color:var(--text-muted)">/</span>
-          <span id="totalCnt" style="font-family:var(--font-mono)">0</span>
-          <span style="color:var(--text-muted)"> 张</span>
+        <div class="sec">
+          <div class="sel-bar" style="margin-bottom:8px">
+            <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> 全选</label>
+            <span style="flex:1"></span>
+            <span id="selCnt" style="color:var(--accent);font-family:var(--font-mono);font-size:11px">0</span>
+            <span style="color:var(--text-muted);font-size:11px">/</span>
+            <span id="totalCnt" style="font-family:var(--font-mono);font-size:11px">0</span>
+          </div>
+          <button class="btn btn-dl primary" id="btnDlCur" disabled onclick="downloadCurrent()" style="width:100%;margin-bottom:5px">下载当前图片</button>
+          <div class="dl-grp">
+            <button class="btn btn-ol" id="btnDlSel" disabled onclick="downloadSelected()">下载选中</button>
+            <button class="btn btn-ol" id="btnDlAll" disabled onclick="downloadAllZip()">打包全部 .zip</button>
+          </div>
         </div>
-        <div class="dl-grp">
-          <button class="btn btn-dl" id="btnDlCur" disabled onclick="downloadCurrent()">下载当前</button>
-          <button class="btn btn-dl" id="btnDlSel" disabled onclick="downloadSelected()">下载选中</button>
-        </div>
-        <button class="btn btn-ol" id="btnDlAll" disabled onclick="downloadAllZip()" style="width:100%">打包下载全部 (.zip)</button>
-        <button class="btn btn-sec" id="btnClear" disabled onclick="resetAll()" style="width:100%">清除全部图片</button>
+        <button class="btn btn-ghost" id="btnClear" disabled onclick="resetAll()">清除全部图片</button>
       </div>
     </div>
   </div>
