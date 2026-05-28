@@ -688,6 +688,7 @@ input[type="file"]{display:none}
           <div class="sel-bar" style="margin-top:5px;flex-wrap:wrap;gap:8px">
             <label><input type="checkbox" id="syncPos"> 所有图片统一位置</label>
             <label><input type="checkbox" id="constrainFit"> 保证完整显示</label>
+            <button class="ac-btn" onclick="constrainAll()" title="为所有图片计算保证完整显示的字号">全部</button>
           </div>
         </div>
         <div class="sec" id="tileSec" style="display:none">
@@ -953,8 +954,39 @@ function applyToAll(type){
 }
 function applyAllSettings(){
   if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);const s=imgs[idx].cfg;
-  imgs.forEach((it,i)=>{if(i===idx)return;const oldText=it.cfg.text;it.cfg={...s,wmPos:{...s.wmPos}};if(autoFn&&afMode==='each')it.cfg.text=oldText});
-  showToast(`全部设置 \u2192 ${imgs.length} \u5F20\u56FE\u7247`);render()
+  imgs.forEach((it,i)=>{
+    if(i===idx)return;
+    // Preserve per-image smart settings
+    const keep={};
+    if(autoFn&&afMode==='each')keep.text=it.cfg.text;
+    it.cfg={...s,wmPos:{...s.wmPos}};
+    Object.assign(it.cfg,keep);
+  });
+  showToast('\u5168\u90E8\u8BBE\u7F6E \u2192 '+imgs.length+' \u5F20\u56FE\u7247');render()
+}
+
+// Apply constrain-fit font shrink to all images
+function constrainAll(){
+  if(!imgs.length)return;
+  const ov=$('procOverlay'),msg=$('procMsg');ov.style.display='flex';
+  let i=0,count=0;
+  function chunk(){
+    const end=Math.min(i+10,imgs.length);
+    for(;i<end;i++){
+      const cfg=imgs[i].cfg;
+      if(cfg.mode!=='single')continue;
+      const cw=imgs[i].img.naturalWidth,ch=imgs[i].img.naturalHeight;
+      // Use a temp canvas for measureText
+      const tCtx=document.createElement('canvas').getContext('2d');
+      tCtx.font=`${cfg.fontSize}px "${cfg.font}"`;const m=tCtx.measureText(cfg.text);
+      let fs=cfg.fontSize;
+      for(let t=0;t<30;t++){tCtx.font=`${fs}px "${cfg.font}"`;const m2=tCtx.measureText(cfg.text);const rad=Math.abs(cfg.angle*Math.PI/180);if(Math.abs(m2.width*Math.cos(rad))+Math.abs(fs*Math.sin(rad))<=cw&&Math.abs(m2.width*Math.sin(rad))+Math.abs(fs*Math.cos(rad))<=ch)break;fs=Math.max(8,fs-Math.ceil(fs*.05+.5))}
+      if(fs<cfg.fontSize){cfg.fontSize=fs;count++}
+    }
+    msg.textContent='\u5B8C\u6574\u663E\u793A '+i+' / '+imgs.length;
+    if(i<imgs.length)requestAnimationFrame(chunk);else{ov.style.display='none';loadCfg(imgs[idx].cfg);render();showToast('\u5B8C\u6210 \u2014 '+count+' \u5F20\u56FE\u7247\u5B57\u53F7\u5DF2\u8C03\u6574')}
+  }
+  requestAnimationFrame(chunk)
 }
 
 // ==================== Fit canvas ====================
