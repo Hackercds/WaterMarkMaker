@@ -896,8 +896,16 @@ function loadCfg(cfg){
   if(!syncZoom){zoom=cfg.zoom||1;canvasWrap.style.transform=`scale(${zoom})`;$('zLabel').textContent=Math.round(zoom*100)+'%'}
 }
 function saveCfg(){if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);render()}
-function toggleColorPicker(){$('colorPopup').classList.toggle('open')}
-document.addEventListener('click',e=>{if(!e.target.closest('.color-popup')&&!e.target.closest('.ac-btn'))$('colorPopup').classList.remove('open')});
+let nativeColorFailed=false;
+$('wmColor').addEventListener('click',e=>{
+  // On touch devices, native color picker often fails — show popup fallback
+  if(!matchMedia('(hover:hover)').matches||nativeColorFailed){
+    e.preventDefault();toggleColorPicker();
+    if(!nativeColorFailed){nativeColorFailed=true;showToast('您的设备不支持原生取色器，已使用备选调色盘')}
+  }
+});
+function toggleColorPicker(){buildPalette();$('colorPopup').classList.toggle('open')}
+document.addEventListener('click',e=>{if(!e.target.closest('.color-popup')&&!e.target.closest('.ac-btn')&&e.target.id!=='wmColor')$('colorPopup').classList.remove('open')});
 
 function onColorChange(){
   const hex=$('wmColor').value;$('wmColorHex').value=hex.replace('#','');
@@ -1138,29 +1146,23 @@ $('imgSearch').addEventListener('input',()=>{
 });
 $('imgSearch').addEventListener('keydown',e=>{if(e.key==='Escape')clearSearch()});
 
-// ===== Generate color palette =====
-(function(){
+// ===== Generate color palette (lazy: on first open) =====
+let paletteBuilt=false;
+function buildPalette(){
+  if(paletteBuilt)return;paletteBuilt=true;
   const p=$('colorPalette');if(!p)return;
-  const hues=[0,30,60,120,180,210,240,270,300,330];
-  // 5 brightness levels + gray row + pure colors
-  for(let b=100;b>=20;b-=20) // brightness rows
-    for(const h of hues){
-      const c=`hsl(${h},70%,${b}%)`;const d=document.createElement('span');
-      d.className='cp-cell';d.style.background=c;d.title=parseColorToHex(c);
-      d.addEventListener('click',()=>pickColor(d.title));
-      p.appendChild(d)
-    }
-  // Bottom row: white → gray → black
-  for(const s of['#fff','#ddd','#bbb','#999','#666','#444','#222','#000']){
-    const d=document.createElement('span');d.className='cp-cell';d.style.background=s;d.title=s;
-    d.addEventListener('click',()=>pickColor(s));p.appendChild(d)
+  const frag=document.createDocumentFragment(),hues=[0,30,60,120,180,210,240,270,300,330];
+  for(let b=100;b>=20;b-=20)for(const h of hues){
+    const c=`hsl(${h},70%,${b}%)`,hex=parseColorToHex(c),d=document.createElement('span');
+    d.className='cp-cell';d.style.background=c;d.title=hex;
+    d.addEventListener('click',()=>pickColor(hex));frag.appendChild(d)
   }
-  // Extra: transparent hint colors
-  for(const s of['#e94560','#f0a040','#40c060','#4080e0','#8040c0']){
+  for(const s of['#fff','#ddd','#bbb','#999','#666','#444','#222','#000','#e94560','#f0a040','#40c060','#4080e0','#8040c0']){
     const d=document.createElement('span');d.className='cp-cell';d.style.background=s;d.title=s;
-    d.addEventListener('click',()=>pickColor(s));p.appendChild(d)
+    d.addEventListener('click',()=>pickColor(s));frag.appendChild(d)
   }
-})();
+  p.appendChild(frag)
+}
 
 // Fix inline handlers: convert to addEventListener for reliability
 $('syncZoom').addEventListener('change',function(){syncZoom=this.checked});
