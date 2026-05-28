@@ -916,12 +916,34 @@ function toggleSelectAll(){const c=$('selectAll').checked;imgs.forEach(i=>i.sel=
 function render(){
   const i=imgs[idx]?.img;if(!i)return;const c=imgs[idx].cfg,cw=mc.width,ch=mc.height;
   ctx.clearRect(0,0,cw,ch);ctx.drawImage(i,0,0,cw,ch);
-  ctx.font=`${c.fontSize}px "${c.font}"`;ctx.fillStyle=c.color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=c.opacity;
-  if(c.mode==='single')rSingle(c,cw,ch);else rTile(c,cw,ch);ctx.globalAlpha=1
+  let ef=c.fontSize;
+  if(constrainFit&&c.mode==='single'){
+    const maxFs=calcMaxFontSize(c,cw,ch);
+    if(maxFs<c.fontSize)ef=Math.max(8,Math.floor(maxFs));
+  }
+  ctx.font=`${ef}px "${c.font}"`;ctx.fillStyle=c.color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=c.opacity;
+  if(c.mode==='single')rSingle(c,cw,ch,ef);else rTile(c,cw,ch,ef);ctx.globalAlpha=1;
+  // Show effective font size label
+  $('fsLabel').textContent=ef!==c.fontSize?ef+'px↓':c.fontSize+'px'
 }
-function rSingle(c,cw,ch){const x=c.wmPos.x*cw,y=c.wmPos.y*ch,r=(c.angle*Math.PI)/180;ctx.save();ctx.translate(x,y);ctx.rotate(r);ctx.fillText(c.text,0,0);
-  if(!dragging){ctx.strokeStyle='rgba(0,0,0,.15)';ctx.lineWidth=1;ctx.setLineDash([3,3]);const m=ctx.measureText(c.text);ctx.strokeRect(-Math.max(m.width*.55,c.fontSize*.3),-c.fontSize*.65,Math.max(m.width*1.1,c.fontSize*.6),c.fontSize*1.3);ctx.setLineDash([])}ctx.restore()}
-function rTile(c,cw,ch){const cols=c.tileCols,rows=c.tileRows,r=(c.tileAngle*Math.PI)/180,cellW=cw/cols,cellH=ch/rows,ox=c.tileOffsetX*cellW,oy=c.tileOffsetY*cellH;for(let row=-2;row<rows+2;row++)for(let col=-2;col<cols+2;col++){ctx.save();ctx.translate(col*cellW+cellW/2+ox,row*cellH+cellH/2+oy);ctx.rotate(r);ctx.fillText(c.text,0,0);ctx.restore()}}
+function rSingle(c,cw,ch,fs){const x=c.wmPos.x*cw,y=c.wmPos.y*ch,r=(c.angle*Math.PI)/180;ctx.save();ctx.translate(x,y);ctx.rotate(r);ctx.fillText(c.text,0,0);
+  if(!dragging){ctx.strokeStyle='rgba(0,0,0,.15)';ctx.lineWidth=1;ctx.setLineDash([3,3]);const m=ctx.measureText(c.text);ctx.strokeRect(-Math.max(m.width*.55,fs*.3),-fs*.65,Math.max(m.width*1.1,fs*.6),fs*1.3);ctx.setLineDash([])}ctx.restore()}
+function rTile(c,cw,ch,fs){const cols=c.tileCols,rows=c.tileRows,r=(c.tileAngle*Math.PI)/180,cellW=cw/cols,cellH=ch/rows,ox=c.tileOffsetX*cellW,oy=c.tileOffsetY*cellH;for(let row=-2;row<rows+2;row++)for(let col=-2;col<cols+2;col++){ctx.save();ctx.translate(col*cellW+cellW/2+ox,row*cellH+cellH/2+oy);ctx.rotate(r);ctx.fillText(c.text,0,0);ctx.restore()}}
+
+// Calculate max font size so rotated text fits inside the image (single mode)
+function calcMaxFontSize(cfg,cw,ch){
+  // Get width-to-fontSize ratio from measureText
+  ctx.save();ctx.font=`${cfg.fontSize}px "${cfg.font}"`;const m=ctx.measureText(cfg.text);ctx.restore();
+  const k=m.width/cfg.fontSize; // width-per-fontSize ratio
+  const rad=Math.abs(cfg.angle*Math.PI/180);
+  const ck=Math.abs(k*Math.cos(rad)),sk=Math.abs(k*Math.sin(rad));
+  const c1=Math.abs(Math.cos(rad)),s1=Math.abs(Math.sin(rad));
+  // Text bounding box size at fontSize=1:
+  const denomW=ck+s1,denomH=sk+c1;
+  if(denomW<=0||denomH<=0)return cfg.fontSize;
+  const maxByW=cw/denomW,maxByH=ch/denomH;
+  return Math.min(maxByW,maxByH)
+}
 
 // ==================== Canvas drag ====================
 function cvPos(e){const r=mc.getBoundingClientRect();return{x:(e.clientX-r.left)*mc.width/r.width,y:(e.clientY-r.top)*mc.height/r.height}}
@@ -978,7 +1000,20 @@ mc.addEventListener('touchmove',e=>{if(!dragging||e.touches.length!==1)return;e.
 mc.addEventListener('touchend',()=>{if(dragging){dragging=false;render()}});
 
 // ==================== Download ====================
-function applyWm(dCtx,dw,dh,c,sf){const fs=Math.round(c.fontSize*sf);dCtx.font=`${fs}px "${c.font}"`;dCtx.fillStyle=c.color;dCtx.textAlign='center';dCtx.textBaseline='middle';dCtx.globalAlpha=c.opacity;if(c.mode==='single'){dCtx.save();dCtx.translate(c.wmPos.x*dw,c.wmPos.y*dh);dCtx.rotate(c.angle*Math.PI/180);dCtx.fillText(c.text,0,0);dCtx.restore()}else{const cw=dw/c.tileCols,ch=dh/c.tileRows,ox=c.tileOffsetX*cw,oy=c.tileOffsetY*ch,r=c.tileAngle*Math.PI/180;for(let row=-2;row<c.tileRows+2;row++)for(let col=-2;col<c.tileCols+2;col++){dCtx.save();dCtx.translate(col*cw+cw/2+ox,row*ch+ch/2+oy);dCtx.rotate(r);dCtx.fillText(c.text,0,0);dCtx.restore()}}}
+function applyWm(dCtx,dw,dh,c,sf){
+  let fs=Math.round(c.fontSize*sf);
+  if(constrainFit&&c.mode==='single'){
+    // Recalculate max font for full-res download canvas
+    dCtx.save();dCtx.font=`${fs}px "${c.font}"`;const m=dCtx.measureText(c.text);dCtx.restore();
+    const k=m.width/fs,rad=Math.abs(c.angle*Math.PI/180);
+    const denomW=Math.abs(k*Math.cos(rad))+Math.abs(Math.sin(rad));
+    const denomH=Math.abs(k*Math.sin(rad))+Math.abs(Math.cos(rad));
+    const maxF=denomW>0&&denomH>0?Math.min(dw/denomW,dh/denomH):fs;
+    if(maxF<fs)fs=Math.max(8,Math.floor(maxF));
+  }
+  dCtx.font=`${fs}px "${c.font}"`;dCtx.fillStyle=c.color;dCtx.textAlign='center';dCtx.textBaseline='middle';dCtx.globalAlpha=c.opacity;
+  if(c.mode==='single'){dCtx.save();dCtx.translate(c.wmPos.x*dw,c.wmPos.y*dh);dCtx.rotate(c.angle*Math.PI/180);dCtx.fillText(c.text,0,0);dCtx.restore()}
+  else{const cw=dw/c.tileCols,ch=dh/c.tileRows,ox=c.tileOffsetX*cw,oy=c.tileOffsetY*ch,r=c.tileAngle*Math.PI/180;for(let row=-2;row<c.tileRows+2;row++)for(let col=-2;col<c.tileCols+2;col++){dCtx.save();dCtx.translate(col*cw+cw/2+ox,row*ch+ch/2+oy);dCtx.rotate(r);dCtx.fillText(c.text,0,0);dCtx.restore()}}}
 function dlOne(it){const c=it.cfg,dc=document.createElement('canvas');dc.width=it.img.naturalWidth;dc.height=it.img.naturalHeight;const dCtx=dc.getContext('2d');dCtx.drawImage(it.img,0,0);applyWm(dCtx,dc.width,dc.height,c,Math.min(dc.width/Math.max(mc.width,1),1));dc.toBlob(b=>{const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=it.name.replace(/\.[^.]+$/,'')+'_watermarked.png';a.click();URL.revokeObjectURL(u);showToast('\u4e0b\u8f7d\u5b8c\u6210')},'image/png')}
 function downloadCurrent(){if(!imgs.length)return;dlOne(imgs[idx]);closeSettings()}
 function downloadSelected(){const sel=imgs.filter(i=>i.sel);if(!sel.length){showToast('\u6ca1\u6709\u9009\u4e2d\u7684\u56fe\u7247');return}if(sel.length===1){dlOne(sel[0]);return}dlZip(sel);closeSettings()}
