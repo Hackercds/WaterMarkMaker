@@ -542,13 +542,15 @@ input[type="file"]{display:none}
       <div class="bottom-bar" id="bottomBar" style="display:none">
         <div class="bar-tools">
           <div class="search-wrap">
-            <span class="search-icon">&#x2315;</span>
-            <input type="text" id="imgSearch" placeholder="搜索文件名..." oninput="onSearch()">
+            <span class="search-icon" onclick="document.getElementById('imgSearch').focus()">&#x2315;</span>
+            <input type="text" id="imgSearch" placeholder="搜索..." oninput="onSearch()">
           </div>
           <div class="nav-btns">
+            <button class="nbtn" onclick="thumbStrip.scrollBy({left:-200,behavior:'smooth'})" title="缩略图左移">&laquo;</button>
             <button class="nbtn" onclick="navPrev()" title="上一张">&#x2039;</button>
             <span class="nav-pos" id="navPos" onclick="focusJump()">1/1</span>
             <button class="nbtn" onclick="navNext()" title="下一张">&#x203A;</button>
+            <button class="nbtn" onclick="thumbStrip.scrollBy({left:200,behavior:'smooth'})" title="缩略图右移">&raquo;</button>
           </div>
           <input type="number" class="nav-jump" id="navJump" min="1" placeholder="#" onkeydown="if(event.key==='Enter')jumpTo()" style="display:none">
           <button class="view-toggle" id="viewToggle" onclick="toggleList()">
@@ -761,6 +763,9 @@ function navNext(){if(imgs.length)switchTo((idx+1)%imgs.length)}
 function focusJump(){const j=$('navJump');j.style.display=j.style.display==='none'?'inline-block':'none';if(j.style.display!=='none'){j.value=idx+1;j.focus();j.select()}}
 function jumpTo(){const v=parseInt($('navJump').value);if(v>=1&&v<=imgs.length)switchTo(v-1);$('navJump').style.display='none'}
 function toggleList(){listOpen=!listOpen;listOverlay.classList.toggle('open',listOpen);$('viewToggle').classList.toggle('active',listOpen);thumbStrip.style.display=listOpen?'none':'flex';if(listOpen)updList()}
+function closeList(){listOpen=false;listOverlay.classList.remove('open');$('viewToggle').classList.remove('active');thumbStrip.style.display=imgs.length?'flex':'none'}
+// Close list when clicking outside
+document.addEventListener('click',e=>{if(listOpen&&!e.target.closest('.list-overlay')&&!e.target.closest('.view-toggle'))closeList()});
 
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
@@ -883,7 +888,7 @@ function closeSettings(){
   sidebar.style.transition='';
   isSwiping=false;
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSettings();closeList()}});
 
 // FIXED: swipe-to-dismiss — skip when touching form controls
 function isFormElem(el){const t=el.tagName;return t==='INPUT'||t==='SELECT'||t==='BUTTON'||t==='TEXTAREA'||t==='LABEL'||el.closest('label')}
