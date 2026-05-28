@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自定义水印工具</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  overflow: hidden;
+}
+.header {
+  background: #16213e;
+  padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid #0f3460;
+}
+.header h1 { font-size: 20px; color: #e94560; }
+.header .actions { display: flex; gap: 10px; }
+.container {
+  display: flex;
+  height: calc(100vh - 57px);
+}
+/* Preview area */
+.preview {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: #16213e;
+  position: relative;
+  overflow: auto;
+  padding: 20px;
+}
+.preview .drop-zone {
+  border: 2px dashed #0f3460;
+  border-radius: 12px;
+  padding: 60px 40px;
+  text-align: center;
+  color: #6c7a8d;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.preview .drop-zone:hover,
+.preview .drop-zone.drag-over { border-color: #e94560; color: #e94560; }
+.preview .drop-zone .icon { font-size: 48px; margin-bottom: 16px; }
+.preview .drop-zone p { font-size: 14px; line-height: 1.8; }
+.preview canvas {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+  cursor: crosshair;
+  border-radius: 4px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+.preview .canvas-wrapper { position: relative; display: inline-block; }
+.preview input[type="file"] { display: none; }
+
+/* Controls panel */
+.controls {
+  width: 340px;
+  background: #1a1a2e;
+  border-left: 1px solid #0f3460;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.controls .section {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 14px;
+  border: 1px solid #0f3460;
+}
+.controls .section-title {
+  font-size: 13px;
+  color: #e94560;
+  margin-bottom: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Mode tabs */
+.mode-tabs {
+  display: flex; gap: 4px;
+}
+.mode-tab {
+  flex: 1;
+  padding: 8px;
+  background: #0f3460;
+  border: 1px solid #0f3460;
+  color: #6c7a8d;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.mode-tab.active { background: #e94560; color: #fff; border-color: #e94560; }
+.mode-tab:hover:not(.active) { color: #e0e0e0; }
+
+/* Form controls */
+.form-group { margin-bottom: 10px; }
+.form-group:last-child { margin-bottom: 0; }
+.form-group label {
+  display: block; font-size: 12px; color: #8a9bb5; margin-bottom: 4px;
+}
+.form-group input[type="text"],
+.form-group select {
+  width: 100%;
+  padding: 8px 10px;
+  background: #0f3460;
+  border: 1px solid #1a4a7a;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-group input[type="text"]:focus,
+.form-group select:focus { border-color: #e94560; }
+.form-group input[type="range"] {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: #0f3460;
+  outline: none;
+}
+.form-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #e94560;
+  cursor: pointer;
+}
+.form-group input[type="color"] {
+  width: 36px; height: 30px; border: none; border-radius: 4px;
+  cursor: pointer; background: transparent;
+}
+.form-row { display: flex; gap: 8px; align-items: end; }
+.form-row .form-group { flex: 1; }
+.form-group .value-label { font-size: 11px; color: #e94560; float: right; }
+
+.btn {
+  padding: 10px 20px;
+  border: none; border-radius: 6px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-primary { background: #e94560; color: #fff; }
+.btn-primary:hover { background: #d63852; }
+.btn-secondary { background: #0f3460; color: #e0e0e0; }
+.btn-secondary:hover { background: #1a4a7a; }
+.btn-download {
+  width: 100%;
+  padding: 12px;
+  background: #e94560;
+  color: #fff;
+  font-size: 15px;
+}
+.btn-download:hover { background: #d63852; }
+.btn-download:disabled { background: #2a2a3e; color: #555; cursor: not-allowed; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: #e94560; color: #fff;
+  padding: 12px 28px; border-radius: 8px;
+  font-size: 14px; z-index: 1000;
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>自定义水印工具</h1>
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="resetAll()">清除图片</button>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Preview -->
+  <div class="preview" id="previewArea">
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">🖼️</div>
+      <p>拖拽图片到此处<br>或点击选择文件</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+    <div class="canvas-wrapper" id="canvasWrapper" style="display:none;">
+      <canvas id="mainCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls" id="controlsPanel">
+    <div class="section">
+      <div class="section-title">水印模式</div>
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="single" onclick="switchMode('single')">单个水印</button>
+        <button class="mode-tab" data-mode="tile" onclick="switchMode('tile')">斜填充 / 平铺</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">水印文字</div>
+      <div class="form-group">
+        <input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="render()">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>字体</label>
+          <select id="wmFont" onchange="render()">
+            <option value="Arial">Arial</option>
+            <option value="Microsoft YaHei" selected>微软雅黑</option>
+            <option value="SimHei">黑体</option>
+            <option value="SimSun">宋体</option>
+            <option value="KaiTi">楷体</option>
+            <option value="sans-serif">Sans-serif</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>字号 <span class="value-label" id="fontSizeLabel">32px</span></label>
+          <input type="range" id="wmFontSize" min="12" max="120" value="32" oninput="onFontSizeChange()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>颜色</label>
+          <input type="color" id="wmColor" value="#ffffff" onchange="render()">
+        </div>
+        <div class="form-group">
+          <label>透明度 <span class="value-label" id="opacityLabel">0.3</span></label>
+          <input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOpacityChange()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Single watermark controls -->
+    <div class="section" id="singleControls">
+      <div class="section-title">单个水印设置</div>
+      <div class="form-group">
+        <label>旋转角度 <span class="value-label" id="angleLabel">-30°</span></label>
+        <input type="range" id="wmAngle" min="-180" max="180" value="-30" oninput="onAngleChange()">
+      </div>
+      <p style="font-size:11px;color:#6c7a8d;margin-top:6px;">
+        提示：在图片上拖动水印调整位置，或点击任意位置移动水印
+      </p>
+    </div>
+
+    <!-- Tile controls -->
+    <div class="section" id="tileControls" style="display:none;">
+      <div class="section-title">平铺设置</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>列数 <span class="value-label" id="colsLabel">4</span></label>
+          <input type="range" id="tileCols" min="1" max="12" value="4" oninput="onTileChange()">
+        </div>
+        <div class="form-group">
+          <label>行数 <span class="value-label" id="rowsLabel">3</span></label>
+          <input type="range" id="tileRows" min="1" max="10" value="3" oninput="onTileChange()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>旋转角度 <span class="value-label" id="tileAngleLabel">-30°</span></label>
+        <input type="range" id="tileAngle" min="-180" max="180" value="-30" oninput="onTileAngleChange()">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>水平偏移 <span class="value-label" id="offsetXLabel">0%</span></label>
+          <input type="range" id="tileOffsetX" min="-50" max="50" value="0" oninput="onTileOffsetChange()">
+        </div>
+        <div class="form-group">
+          <label>垂直偏移 <span class="value-label" id="offsetYLabel">0%</span></label>
+          <input type="range" id="tileOffsetY" min="-50" max="50" value="0" oninput="onTileOffsetChange()">
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-download" id="btnDownload" disabled onclick="downloadImage()">
+      下载带水印图片 (PNG)
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== State ====================
+let image = null;          // HTMLImageElement
+let imageLoaded = false;
+let mode = 'single'; // 'single' | 'tile'
+
+// Single mode state
+let wmPos = { x: 0.5, y: 0.5 }; // relative 0-1
+let dragging = false;
+
+// ==================== DOM refs ====================
+const dropZone = document.getElementById('dropZone');
+const canvasWrapper = document.getElementById('canvasWrapper');
+const mainCanvas = document.getElementById('mainCanvas');
+const ctx = mainCanvas.getContext('2d');
+const fileInput = document.getElementById('fileInput');
+
+// ==================== Image loading ====================
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) loadImage(e.target.files[0]);
+});
+
+// Drag & drop
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImage(file);
+});
+
+// Paste from clipboard
+document.addEventListener('paste', e => {
+  const items = e.clipboardData.items;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      loadImage(item.getAsFile());
+      break;
+    }
+  }
+});
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      image = img;
+      imageLoaded = true;
+      wmPos = { x: 0.5, y: 0.5 }; // reset to center
+      dropZone.style.display = 'none';
+      canvasWrapper.style.display = 'inline-block';
+      fitCanvas();
+      render();
+      document.getElementById('btnDownload').disabled = false;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetAll() {
+  image = null;
+  imageLoaded = false;
+  wmPos = { x: 0.5, y: 0.5 };
+  mainCanvas.width = 0;
+  mainCanvas.height = 0;
+  dropZone.style.display = '';
+  canvasWrapper.style.display = 'none';
+  document.getElementById('btnDownload').disabled = true;
+  fileInput.value = '';
+}
+
+// Fit canvas to preview area while maintaining aspect ratio
+function fitCanvas() {
+  if (!image) return;
+  const container = document.getElementById('previewArea');
+  const maxW = container.clientWidth - 40;
+  const maxH = container.clientHeight - 40;
+  let w = image.naturalWidth;
+  let h = image.naturalHeight;
+  const ratio = Math.min(maxW / w, maxH / h);
+  w = Math.floor(w * ratio);
+  h = Math.floor(h * ratio);
+  mainCanvas.width = w;
+  mainCanvas.height = h;
+}
+
+window.addEventListener('resize', () => {
+  if (imageLoaded) { fitCanvas(); render(); }
+});
+
+// ==================== Mode switching ====================
+function switchMode(newMode) {
+  mode = newMode;
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+  document.getElementById('singleControls').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('tileControls').style.display = mode === 'tile' ? '' : 'none';
+  render();
+}
+
+// ==================== Slider handlers ====================
+function onFontSizeChange() {
+  document.getElementById('fontSizeLabel').textContent = this.value + 'px';
+  render();
+}
+function onOpacityChange() {
+  document.getElementById('opacityLabel').textContent = parseFloat(this.value).toFixed(2);
+  render();
+}
+function onAngleChange() {
+  document.getElementById('angleLabel').textContent = this.value + '°';
+  render();
+}
+function onTileChange() {
+  document.getElementById('colsLabel').textContent = document.getElementById('tileCols').value;
+  document.getElementById('rowsLabel').textContent = document.getElementById('tileRows').value;
+  render();
+}
+function onTileAngleChange() {
+  document.getElementById('tileAngleLabel').textContent = this.value + '°';
+  render();
+}
+function onTileOffsetChange() {
+  document.getElementById('offsetXLabel').textContent = document.getElementById('tileOffsetX').value + '%';
+  document.getElementById('offsetYLabel').textContent = document.getElementById('tileOffsetY').value + '%';
+  render();
+}
+
+// Fix: bind all slider events properly
+document.getElementById('wmFontSize').addEventListener('input', onFontSizeChange);
+document.getElementById('wmOpacity').addEventListener('input', onOpacityChange);
+document.getElementById('wmAngle').addEventListener('input', onAngleChange);
+document.getElementById('tileCols').addEventListener('input', onTileChange);
+document.getElementById('tileRows').addEventListener('input', onTileChange);
+document.getElementById('tileAngle').addEventListener('input', onTileAngleChange);
+document.getElementById('tileOffsetX').addEventListener('input', onTileOffsetChange);
+document.getElementById('tileOffsetY').addEventListener('input', onTileOffsetChange);
+
+// ==================== Rendering ====================
+function getWatermarkConfig() {
+  return {
+    text: document.getElementById('wmText').value || '我的水印',
+    font: document.getElementById('wmFont').value,
+    fontSize: parseInt(document.getElementById('wmFontSize').value),
+    color: document.getElementById('wmColor').value,
+    opacity: parseFloat(document.getElementById('wmOpacity').value),
+    angle: parseInt(document.getElementById('wmAngle').value),
+    tileCols: parseInt(document.getElementById('tileCols').value),
+    tileRows: parseInt(document.getElementById('tileRows').value),
+    tileAngle: parseInt(document.getElementById('tileAngle').value),
+    tileOffsetX: parseInt(document.getElementById('tileOffsetX').value) / 100,
+    tileOffsetY: parseInt(document.getElementById('tileOffsetY').value) / 100,
+  };
+}
+
+function render() {
+  if (!imageLoaded) return;
+  const cfg = getWatermarkConfig();
+  const cw = mainCanvas.width;
+  const ch = mainCanvas.height;
+
+  // Clear and draw image scaled to canvas
+  ctx.clearRect(0, 0, cw, ch);
+  ctx.drawImage(image, 0, 0, cw, ch);
+
+  // Set text style
+  ctx.font = `${cfg.fontSize}px "${cfg.font}"`;
+  ctx.fillStyle = cfg.color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.globalAlpha = cfg.opacity;
+
+  if (mode === 'single') {
+    renderSingle(cfg, cw, ch);
+  } else {
+    renderTile(cfg, cw, ch);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function renderSingle(cfg, cw, ch) {
+  const x = wmPos.x * cw;
+  const y = wmPos.y * ch;
+  const angleRad = (cfg.angle * Math.PI) / 180;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angleRad);
+  ctx.fillText(cfg.text, 0, 0);
+
+  // Draw subtle drag indicator
+  if (!dragging) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    const metrics = ctx.measureText(cfg.text);
+    const bw = metrics.width * 0.6;
+    const bh = cfg.fontSize * 0.7;
+    ctx.strokeRect(-bw, -bh, bw * 2, bh * 2);
+    ctx.setLineDash([]);
+  }
+
+  ctx.restore();
+}
+
+function renderTile(cfg, cw, ch) {
+  const cols = cfg.tileCols;
+  const rows = cfg.tileRows;
+  const angleRad = (cfg.tileAngle * Math.PI) / 180;
+
+  const cellW = cw / cols;
+  const cellH = ch / rows;
+  const offsetX = cfg.tileOffsetX * cellW;
+  const offsetY = cfg.tileOffsetY * cellH;
+
+  // Extend beyond borders for rotation coverage
+  const extendCols = 2;
+  const extendRows = 2;
+
+  for (let row = -extendRows; row < rows + extendRows; row++) {
+    for (let col = -extendCols; col < cols + extendCols; col++) {
+      const cx = col * cellW + cellW / 2 + offsetX;
+      const cy = row * cellH + cellH / 2 + offsetY;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angleRad);
+      ctx.fillText(cfg.text, 0, 0);
+      ctx.restore();
+    }
+  }
+}
+
+// ==================== Canvas interaction (single mode) ====================
+function getCanvasPos(e) {
+  const rect = mainCanvas.getBoundingClientRect();
+  const scaleX = mainCanvas.width / rect.width;
+  const scaleY = mainCanvas.height / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY,
+  };
+}
+
+function isNearWatermark(cx, cy) {
+  const cfg = getWatermarkConfig();
+  const wx = wmPos.x * mainCanvas.width;
+  const wy = wmPos.y * mainCanvas.height;
+
+  // Approximate text dimensions
+  ctx.save();
+  ctx.font = `${cfg.fontSize}px "${cfg.font}"`;
+  const metrics = ctx.measureText(cfg.text);
+  ctx.restore();
+
+  const halfW = metrics.width * 0.6;
+  const halfH = cfg.fontSize * 0.7;
+
+  return Math.abs(cx - wx) < halfW && Math.abs(cy - wy) < halfH;
+}
+
+mainCanvas.addEventListener('mousedown', e => {
+  if (!imageLoaded || mode !== 'single') return;
+  const pos = getCanvasPos(e);
+
+  if (isNearWatermark(pos.x, pos.y)) {
+    dragging = true;
+    mainCanvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  } else {
+    // Click to move
+    wmPos.x = Math.max(0, Math.min(1, pos.x / mainCanvas.width));
+    wmPos.y = Math.max(0, Math.min(1, pos.y / mainCanvas.height));
+    render();
+  }
+});
+
+mainCanvas.addEventListener('mousemove', e => {
+  if (!imageLoaded || mode !== 'single') return;
+  const pos = getCanvasPos(e);
+
+  if (dragging) {
+    wmPos.x = Math.max(0, Math.min(1, pos.x / mainCanvas.width));
+    wmPos.y = Math.max(0, Math.min(1, pos.y / mainCanvas.height));
+    render();
+  } else if (isNearWatermark(pos.x, pos.y)) {
+    mainCanvas.style.cursor = 'grab';
+  } else {
+    mainCanvas.style.cursor = 'crosshair';
+  }
+});
+
+mainCanvas.addEventListener('mouseup', () => {
+  if (dragging) {
+    dragging = false;
+    mainCanvas.style.cursor = 'crosshair';
+    render();
+  }
+});
+
+mainCanvas.addEventListener('mouseleave', () => {
+  if (dragging) {
+    dragging = false;
+    mainCanvas.style.cursor = 'crosshair';
+    render();
+  }
+});
+
+// Touch support
+mainCanvas.addEventListener('touchstart', e => {
+  if (!imageLoaded || mode !== 'single') return;
+  const touch = e.touches[0];
+  const pos = getCanvasPos(touch);
+
+  if (isNearWatermark(pos.x, pos.y)) {
+    dragging = true;
+    e.preventDefault();
+  } else {
+    wmPos.x = Math.max(0, Math.min(1, pos.x / mainCanvas.width));
+    wmPos.y = Math.max(0, Math.min(1, pos.y / mainCanvas.height));
+    render();
+  }
+});
+
+mainCanvas.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  e.preventDefault();
+  const pos = getCanvasPos(e.touches[0]);
+  wmPos.x = Math.max(0, Math.min(1, pos.x / mainCanvas.width));
+  wmPos.y = Math.max(0, Math.min(1, pos.y / mainCanvas.height));
+  render();
+});
+
+mainCanvas.addEventListener('touchend', () => {
+  if (dragging) {
+    dragging = false;
+    render();
+  }
+});
+
+// ==================== Download ====================
+function downloadImage() {
+  if (!imageLoaded) return;
+
+  // Create a full-resolution canvas for download
+  const downCanvas = document.createElement('canvas');
+  downCanvas.width = image.naturalWidth;
+  downCanvas.height = image.naturalHeight;
+  const dCtx = downCanvas.getContext('2d');
+  const cfg = getWatermarkConfig();
+
+  // Draw original at full res
+  dCtx.drawImage(image, 0, 0, downCanvas.width, downCanvas.height);
+
+  // Scale watermark config to full resolution
+  const scaleX = downCanvas.width / mainCanvas.width;
+  const scaleY = downCanvas.height / mainCanvas.height;
+  const scaledFontSize = Math.round(cfg.fontSize * Math.min(scaleX, scaleY));
+
+  dCtx.font = `${scaledFontSize}px "${cfg.font}"`;
+  dCtx.fillStyle = cfg.color;
+  dCtx.textAlign = 'center';
+  dCtx.textBaseline = 'middle';
+  dCtx.globalAlpha = cfg.opacity;
+
+  const dw = downCanvas.width;
+  const dh = downCanvas.height;
+
+  if (mode === 'single') {
+    const x = wmPos.x * dw;
+    const y = wmPos.y * dh;
+    const angleRad = (cfg.angle * Math.PI) / 180;
+    dCtx.save();
+    dCtx.translate(x, y);
+    dCtx.rotate(angleRad);
+    dCtx.fillText(cfg.text, 0, 0);
+    dCtx.restore();
+  } else {
+    const cols = cfg.tileCols;
+    const rows = cfg.tileRows;
+    const angleRad = (cfg.tileAngle * Math.PI) / 180;
+    const cellW = dw / cols;
+    const cellH = dh / rows;
+    const offsetX = cfg.tileOffsetX * cellW;
+    const offsetY = cfg.tileOffsetY * cellH;
+    const extendCols = 2;
+    const extendRows = 2;
+
+    for (let row = -extendRows; row < rows + extendRows; row++) {
+      for (let col = -extendCols; col < cols + extendCols; col++) {
+        const cx = col * cellW + cellW / 2 + offsetX;
+        const cy = row * cellH + cellH / 2 + offsetY;
+        dCtx.save();
+        dCtx.translate(cx, cy);
+        dCtx.rotate(angleRad);
+        dCtx.fillText(cfg.text, 0, 0);
+        dCtx.restore();
+      }
+    }
+  }
+
+  downCanvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'watermarked.png';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('下载完成！');
+  }, 'image/png');
+}
+
+// ==================== Toast ====================
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ==================== Init ====================
+// Ensure initial slider labels match defaults
+document.getElementById('fontSizeLabel').textContent = document.getElementById('wmFontSize').value + 'px';
+document.getElementById('opacityLabel').textContent = parseFloat(document.getElementById('wmOpacity').value).toFixed(2);
+document.getElementById('angleLabel').textContent = document.getElementById('wmAngle').value + '°';
+</script>
+
+</body>
+</html>
