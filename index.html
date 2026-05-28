@@ -2,13 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Watermark Tool</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 /* ============================================================
    Darkroom Precision — Professional Watermark Tool
-   Palette: deep charcoal + warm amber safelight
    ============================================================ */
 :root {
   --bg-root: #17161a;
@@ -17,9 +16,7 @@
   --bg-input: #1f1e27;
   --border: #33313c;
   --accent: #d4a046;
-  --accent-dim: #b08835;
   --accent-glow: rgba(212,160,70,0.12);
-  --accent-strong: rgba(212,160,70,0.22);
   --text: #e4e2df;
   --text-dim: #908d99;
   --text-muted: #5e5b66;
@@ -30,1236 +27,732 @@
   --font-mono: "SF Mono","Cascadia Code","Consolas",monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
 body{
   font-family:var(--font);background:var(--bg-root);color:var(--text);
-  min-height:100vh;min-height:100dvh;overflow:hidden;-webkit-font-smoothing:antialiased;
+  -webkit-font-smoothing:antialiased;
 }
 
-/* Header */
+/* ===== Layout ===== */
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh}
 .header{
-  background:var(--bg-surface);padding:0 20px;height:46px;
+  background:var(--bg-surface);padding:0 20px;height:46px;flex-shrink:0;
   display:flex;align-items:center;justify-content:space-between;
-  border-bottom:1px solid var(--border);z-index:20;position:relative;
+  border-bottom:1px solid var(--border);z-index:20;
 }
 .header-logo{display:flex;align-items:center;gap:10px}
-.header-logo .logo-mark{
-  width:18px;height:18px;border:2px solid var(--accent);border-radius:2px;position:relative;
-}
-.header-logo .logo-mark::after{
-  content:'';position:absolute;top:3px;left:3px;width:8px;height:8px;
-  background:var(--accent);opacity:.5;
-}
+.header-logo .logo-mark{width:16px;height:16px;border:2px solid var(--accent);border-radius:2px;position:relative}
+.header-logo .logo-mark::after{content:'';position:absolute;top:2px;left:2px;width:8px;height:8px;background:var(--accent);opacity:.5}
 .header-logo h1{font-size:14px;font-weight:600;color:var(--text-dim);letter-spacing:.04em}
 .header-logo h1 span{color:var(--text)}
 .header .actions{display:flex;gap:6px;align-items:center}
-.header .actions .btn{padding:5px 12px;font-size:12px;height:30px}
-.header .mobile-toggle{
-  display:none;width:32px;height:32px;background:transparent;
-  border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);
-  font-size:16px;cursor:pointer;align-items:center;justify-content:center;transition:all .15s;
-}
+.header .mobile-toggle{display:none;width:32px;height:32px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;align-items:center;justify-content:center;font-size:16px}
 .header .mobile-toggle:hover{border-color:var(--accent);color:var(--accent)}
-.settings-icon{display:flex;flex-direction:column;gap:3px;width:16px}
+.settings-icon{display:flex;flex-direction:column;gap:3px;width:15px}
 .settings-icon span{display:block;height:2px;background:currentColor;border-radius:1px}
-.settings-icon span:nth-child(2){width:70%}
-.settings-icon span:nth-child(3){width:45%}
+.settings-icon span:nth-child(2){width:70%}.settings-icon span:nth-child(3){width:45%}
 
-/* Container */
-.container{display:flex;height:calc(100vh - 46px);height:calc(100dvh - 46px)}
-
-/* Preview */
-.preview{
-  flex:1;display:flex;flex-direction:column;background:var(--bg-root);
-  position:relative;overflow:hidden;min-width:0;
-}
-.preview::before{
+.main{display:flex;flex:1;min-height:0}
+.content{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg-root);position:relative}
+.content::before{
   content:'';position:absolute;inset:0;
   background-image:radial-gradient(circle,var(--border) 1px,transparent 1px);
   background-size:24px 24px;opacity:.3;pointer-events:none;z-index:0;
 }
-.preview-canvas-area{
+
+/* Canvas area */
+.canvas-area{
   flex:1;display:flex;align-items:center;justify-content:center;
-  padding:20px;overflow:auto;position:relative;z-index:1;
+  padding:16px;overflow:auto;position:relative;z-index:1;
 }
-/* Canvas wrapper — zoom applied here */
-.canvas-wrapper{
+.canvas-wrap{
   display:inline-block;position:relative;
   transform-origin:center center;
   transition:transform .15s ease-out;
 }
-
-.preview .drop-zone{
+.canvas-wrap canvas{
+  display:block;max-width:100%;max-height:100%;
+  border-radius:var(--radius-sm);cursor:crosshair;
+  box-shadow:0 2px 20px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.04);
+}
+.drop-zone{
   border:2px dashed var(--border);border-radius:var(--radius);
   padding:56px 40px;text-align:center;color:var(--text-muted);
   transition:all .25s;cursor:pointer;max-width:380px;background:var(--bg-surface);
 }
-.preview .drop-zone:hover,
-.preview .drop-zone.drag-over{
-  border-color:var(--accent);color:var(--accent);background:var(--bg-raised);
-}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);color:var(--accent);background:var(--bg-raised)}
+.drop-zone p{font-size:13px;line-height:1.9}
+.drop-zone p strong{color:var(--accent)}
 .upload-icon{
   width:44px;height:44px;border:2px solid currentColor;border-radius:var(--radius);
   margin:0 auto 16px;position:relative;opacity:.5;transition:opacity .25s;
 }
 .drop-zone:hover .upload-icon,.drop-zone.drag-over .upload-icon{opacity:1}
-.upload-icon::before{
-  content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid currentColor;
-}
-.upload-icon::after{
-  content:'';position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
-  width:3px;height:10px;background:currentColor;border-radius:1px;
-}
-.preview .drop-zone p{font-size:13px;line-height:1.9}
-.preview .drop-zone p strong{color:var(--accent)}
-.preview canvas{
-  max-width:100%;max-height:100%;object-fit:contain;cursor:crosshair;
-  border-radius:var(--radius-sm);
-  box-shadow:0 2px 20px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.04);
-  display:block;
-}
-.preview input[type="file"]{display:none}
+.upload-icon::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid currentColor}
+.upload-icon::after{content:'';position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:3px;height:10px;background:currentColor;border-radius:1px}
+input[type="file"]{display:none}
 
-/* ===== Zoom controls (floating in preview corner) ===== */
-.zoom-controls{
-  position:absolute;bottom:14px;right:14px;z-index:10;
-  display:flex;align-items:center;gap:2px;
+/* Floating controls */
+.float-zoom{
+  position:absolute;bottom:12px;right:12px;z-index:10;
+  display:flex;align-items:center;gap:1px;
   background:var(--bg-surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:3px;
-  opacity:.7;transition:opacity .2s;
+  border-radius:var(--radius);padding:2px;opacity:.6;transition:opacity .2s;
 }
-.zoom-controls:hover{opacity:1}
-.zoom-btn{
-  width:26px;height:26px;border:none;background:transparent;color:var(--text-dim);
-  font-size:16px;cursor:pointer;border-radius:var(--radius-sm);
+.float-zoom:hover{opacity:1}
+.zbtn{
+  width:24px;height:24px;border:none;background:transparent;color:var(--text-dim);
+  font-size:15px;cursor:pointer;border-radius:var(--radius-sm);
   display:flex;align-items:center;justify-content:center;
-  font-family:var(--font-mono);transition:all .12s;line-height:1;
+  font-family:var(--font-mono);transition:all .12s;
 }
-.zoom-btn:hover{background:var(--bg-raised);color:var(--text)}
-.zoom-btn:active{color:var(--accent)}
-.zoom-label{
-  font-size:10px;color:var(--text-muted);font-family:var(--font-mono);
-  padding:0 6px;min-width:42px;text-align:center;cursor:pointer;
-  letter-spacing:.03em;
-}
-.zoom-label:hover{color:var(--accent)}
-.zoom-divider{width:1px;height:16px;background:var(--border);margin:0 2px}
+.zbtn:hover{background:var(--bg-raised);color:var(--text)}
+.zlabel{font-size:10px;color:var(--text-muted);font-family:var(--font-mono);padding:0 5px;min-width:38px;text-align:center;cursor:pointer;letter-spacing:.03em}
+.zlabel:hover{color:var(--accent)}
+.zdiv{width:1px;height:14px;background:var(--border);margin:0 1px}
 
-/* ===== Thumbnail Strip / Bottom Bar ===== */
-.bottom-bar{
-  display:flex;flex-direction:column;background:var(--bg-surface);
-  border-top:1px solid var(--border);flex-shrink:0;position:relative;z-index:2;
+.img-tag{
+  position:absolute;top:6px;left:6px;background:rgba(0,0,0,.6);color:var(--text-dim);
+  font-size:10px;padding:2px 6px;border-radius:var(--radius-sm);pointer-events:none;
+  font-family:var(--font-mono);letter-spacing:.03em;border:1px solid rgba(255,255,255,.06);
 }
-.bottom-bar-tools{
-  display:flex;align-items:center;gap:6px;
-  padding:6px 12px;border-bottom:1px solid var(--border);
+
+/* Bottom Bar: tools + thumbnails */
+.bottom-bar{flex-shrink:0;background:var(--bg-surface);border-top:1px solid var(--border);z-index:2}
+.bar-tools{
+  display:flex;align-items:center;gap:6px;padding:5px 10px;
+  border-bottom:1px solid var(--border);
 }
-.search-wrap{
-  position:relative;flex:1;max-width:220px;
-}
+.search-wrap{position:relative;flex:1;max-width:200px}
 .search-wrap input{
-  width:100%;padding:5px 8px 5px 26px;font-size:11px;font-family:var(--font);
+  width:100%;padding:5px 8px 5px 24px;font-size:11px;font-family:var(--font);
   background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
-  color:var(--text);outline:none;transition:border-color .15s;
+  color:var(--text);outline:none;
 }
 .search-wrap input:focus{border-color:var(--accent)}
 .search-wrap input::placeholder{color:var(--text-muted)}
-.search-icon{
-  position:absolute;left:7px;top:50%;transform:translateY(-50%);
-  color:var(--text-muted);font-size:12px;pointer-events:none;
-}
-.nav-btns{display:flex;gap:2px}
-.nav-btn{
+.search-icon{position:absolute;left:7px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;pointer-events:none}
+.nav-btns{display:flex;gap:2px;align-items:center}
+.nbtn{
   width:24px;height:24px;border:1px solid var(--border);background:transparent;
   color:var(--text-dim);border-radius:var(--radius-sm);cursor:pointer;
   font-size:14px;display:flex;align-items:center;justify-content:center;
-  transition:all .12s;font-family:var(--font-mono);line-height:1;
+  font-family:var(--font-mono);transition:all .12s;
 }
-.nav-btn:hover{border-color:var(--accent);color:var(--accent)}
-.nav-btn:disabled{opacity:.3;cursor:not-allowed}
+.nbtn:hover{border-color:var(--accent);color:var(--accent)}
+.nbtn:disabled{opacity:.3;cursor:not-allowed}
 .nav-pos{
   font-size:10px;font-family:var(--font-mono);color:var(--text-dim);
-  white-space:nowrap;letter-spacing:.03em;cursor:pointer;padding:2px 4px;
-  border-radius:var(--radius-sm);transition:all .12s;
+  white-space:nowrap;cursor:pointer;padding:2px 4px;border-radius:var(--radius-sm);
 }
 .nav-pos:hover{color:var(--accent);background:var(--bg-raised)}
 .nav-jump{
-  width:36px;padding:3px 4px;font-size:10px;font-family:var(--font-mono);
+  width:35px;padding:3px 4px;font-size:10px;font-family:var(--font-mono);
   background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
   color:var(--text);text-align:center;outline:none;
 }
 .nav-jump:focus{border-color:var(--accent)}
 .view-toggle{
-  width:26px;height:24px;border:1px solid var(--border);background:transparent;
+  width:24px;height:24px;border:1px solid var(--border);background:transparent;
   color:var(--text-dim);border-radius:var(--radius-sm);cursor:pointer;
   font-size:11px;display:flex;align-items:center;justify-content:center;
   transition:all .12s;
 }
 .view-toggle:hover,.view-toggle.active{border-color:var(--accent);color:var(--accent)}
-.list-dot{display:grid;grid-template-columns:repeat(2,5px);gap:2px}
-.list-dot span{display:block;width:5px;height:5px;background:currentColor;border-radius:1px}
+.lidot{display:grid;grid-template-columns:repeat(2,5px);gap:2px}
+.lidot span{display:block;width:5px;height:5px;background:currentColor;border-radius:1px}
 
-.thumbnail-strip{
-  display:flex;gap:5px;align-items:center;
-  padding:6px 12px;overflow-x:auto;overflow-y:hidden;
-  min-height:54px;flex-shrink:0;
+/* Thumbnail strip */
+.thumb-strip{
+  display:flex;gap:4px;align-items:center;
+  padding:5px 10px;overflow-x:auto;overflow-y:hidden;min-height:50px;
 }
-.thumbnail-strip::-webkit-scrollbar{height:2px}
-.thumbnail-strip::-webkit-scrollbar-track{background:transparent}
-.thumbnail-strip::-webkit-scrollbar-thumb{background:var(--border);border-radius:1px}
-.thumbnail-strip .add-btn{
-  width:40px;height:40px;min-width:40px;border-radius:var(--radius-sm);
+.thumb-strip::-webkit-scrollbar{height:2px}
+.thumb-strip::-webkit-scrollbar-track{background:transparent}
+.thumb-strip::-webkit-scrollbar-thumb{background:var(--border);border-radius:1px}
+.add-thumb{
+  width:38px;height:38px;min-width:38px;border-radius:var(--radius-sm);
   border:1px dashed var(--border);background:transparent;color:var(--text-muted);
-  font-size:18px;cursor:pointer;transition:all .15s;line-height:1;
-  display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;line-height:1;
 }
-.thumbnail-strip .add-btn:hover{border-color:var(--accent);color:var(--accent)}
-.thumbnail-strip .count-badge{
-  font-size:10px;color:var(--text-muted);white-space:nowrap;
-  padding:0 6px;font-family:var(--font-mono);letter-spacing:.04em;
-}
+.add-thumb:hover{border-color:var(--accent);color:var(--accent)}
 .thumb{
-  position:relative;width:40px;height:40px;min-width:40px;
+  position:relative;width:38px;height:38px;min-width:38px;
   border-radius:var(--radius-sm);overflow:hidden;cursor:pointer;flex-shrink:0;
-  border:1.5px solid var(--border);transition:border-color .15s,box-shadow .15s;
+  border:1.5px solid var(--border);transition:all .15s;
   -webkit-tap-highlight-color:transparent;
 }
 .thumb:hover{border-color:var(--text-dim)}
-.thumb.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow)}
+.thumb.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.thumb .thumb-index{
-  position:absolute;top:2px;left:3px;font-size:9px;font-family:var(--font-mono);
-  color:#fff;background:rgba(0,0,0,.7);border-radius:2px;padding:0 3px;line-height:14px;letter-spacing:.03em;
-}
-.thumb .thumb-remove{
-  position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;
-  background:var(--danger);color:#fff;border:none;cursor:pointer;
-  font-size:10px;line-height:15px;text-align:center;opacity:0;transition:opacity .12s;
-}
-.thumb:hover .thumb-remove,.thumb:active .thumb-remove{opacity:1}
-.thumb .thumb-check{
-  position:absolute;bottom:2px;right:2px;width:16px;height:16px;
-  accent-color:var(--accent);cursor:pointer;opacity:0;transition:opacity .12s;border-radius:2px;
-}
-.thumb:hover .thumb-check,.thumb:active .thumb-check,.thumb.show-check .thumb-check{opacity:1}
+.thumb .tidx{position:absolute;top:2px;left:3px;font-size:8px;font-family:var(--font-mono);color:#fff;background:rgba(0,0,0,.7);border-radius:2px;padding:0 3px;line-height:13px}
+.thumb .tdel{position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;background:var(--danger);color:#fff;border:none;cursor:pointer;font-size:10px;line-height:15px;text-align:center;opacity:0;transition:opacity .12s}
+.thumb:hover .tdel,.thumb:active .tdel{opacity:1}
+.thumb .tchk{position:absolute;bottom:2px;right:2px;width:15px;height:15px;accent-color:var(--accent);cursor:pointer;opacity:0;transition:opacity .12s}
+.thumb:hover .tchk,.thumb:active .tchk,.thumb.show-check .tchk{opacity:1}
 
-/* ===== Image List View (alternative to thumbnails) ===== */
-.image-list-overlay{
-  display:none;position:absolute;bottom:0;left:0;right:0;max-height:340px;
+/* Image list overlay */
+.list-overlay{
+  display:none;position:absolute;bottom:0;left:0;right:0;max-height:300px;
   background:var(--bg-surface);border-top:1px solid var(--border);
   z-index:5;flex-direction:column;overflow:hidden;
   box-shadow:0 -4px 20px rgba(0,0,0,.4);
 }
-.image-list-overlay.open{display:flex}
-.image-list-scroll{flex:1;overflow-y:auto;padding:4px 0}
-.image-list-scroll::-webkit-scrollbar{width:3px}
-.image-list-scroll::-webkit-scrollbar-track{background:transparent}
-.image-list-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.image-list-item{
-  display:flex;align-items:center;gap:8px;padding:5px 12px;
-  cursor:pointer;transition:background .1s;border-left:2px solid transparent;
-  -webkit-tap-highlight-color:transparent;
-}
-.image-list-item:hover{background:var(--bg-raised)}
-.image-list-item.active{border-left-color:var(--accent);background:var(--accent-glow)}
-.image-list-item .li-thumb{
-  width:32px;height:32px;border-radius:var(--radius-sm);overflow:hidden;
-  flex-shrink:0;border:1px solid var(--border);
-}
-.image-list-item .li-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.image-list-item .li-info{flex:1;min-width:0}
-.image-list-item .li-name{
-  font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.image-list-item .li-dims{
-  font-size:10px;color:var(--text-muted);font-family:var(--font-mono);
-}
-.image-list-item .li-index{
-  font-size:10px;color:var(--text-muted);font-family:var(--font-mono);
-  min-width:24px;text-align:right;
-}
-.image-list-item .li-actions{display:flex;gap:2px;flex-shrink:0}
-.image-list-item .li-actions button{
-  padding:3px 7px;font-size:10px;border:1px solid var(--border);
-  background:transparent;color:var(--text-dim);border-radius:var(--radius-sm);
-  cursor:pointer;transition:all .12s;
-}
-.image-list-item .li-actions button:hover{border-color:var(--accent);color:var(--accent)}
-.image-list-item .li-actions button.danger:hover{border-color:var(--danger);color:var(--danger)}
-.image-list-empty{
-  padding:20px;text-align:center;color:var(--text-muted);font-size:12px;
-}
+.list-overlay.open{display:flex}
+.list-scroll{flex:1;overflow-y:auto;padding:4px 0}
+.list-scroll::-webkit-scrollbar{width:3px}
+.list-scroll::-webkit-scrollbar-track{background:transparent}
+.list-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.li{display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;border-left:2px solid transparent;transition:background .1s}
+.li:hover{background:var(--bg-raised)}
+.li.active{border-left-color:var(--accent);background:var(--accent-glow)}
+.li .lthumb{width:30px;height:30px;border-radius:var(--radius-sm);overflow:hidden;flex-shrink:0;border:1px solid var(--border)}
+.li .lthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.li .linfo{flex:1;min-width:0}
+.li .lname{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .ldim{font-size:10px;color:var(--text-muted);font-family:var(--font-mono)}
+.li .ln{font-size:10px;color:var(--text-muted);font-family:var(--font-mono);min-width:20px;text-align:right}
+.li .lact button{padding:2px 6px;font-size:10px;border:1px solid var(--border);background:transparent;color:var(--text-dim);border-radius:var(--radius-sm);cursor:pointer}
+.li .lact button:hover{border-color:var(--danger);color:var(--danger)}
+.lempty{padding:20px;text-align:center;color:var(--text-muted);font-size:12px}
 
-/* Controls */
-.controls{
-  width:326px;min-width:326px;background:var(--bg-surface);
+/* ===== Sidebar Controls ===== */
+.sidebar{
+  width:320px;min-width:320px;background:var(--bg-surface);
   border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;
 }
-.controls-scroll{
-  flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 14px;
-  display:flex;flex-direction:column;gap:10px;
-}
-.controls-scroll::-webkit-scrollbar{width:3px}
-.controls-scroll::-webkit-scrollbar-track{background:transparent}
-.controls-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.controls .section{
-  background:var(--bg-raised);border-radius:var(--radius);padding:12px;border:1px solid var(--border);
-}
-.controls .section-title{
-  font-size:10px;color:var(--text-muted);margin-bottom:10px;font-weight:600;
-  text-transform:uppercase;letter-spacing:.08em;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.section-title .section-actions{display:flex;gap:3px}
-.section-title .section-actions button{
-  font-size:9px;padding:2px 7px;border-radius:var(--radius-sm);
-  border:1px solid var(--border);background:transparent;color:var(--text-muted);
-  cursor:pointer;white-space:nowrap;transition:all .12s;
-  text-transform:uppercase;letter-spacing:.04em;
-}
-.section-title .section-actions button:hover{
-  border-color:var(--accent);color:var(--accent);background:var(--accent-glow);
-}
+.side-scroll{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.side-scroll::-webkit-scrollbar{width:3px}
+.side-scroll::-webkit-scrollbar-track{background:transparent}
+.side-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
-/* Mode tabs */
+/* Sections */
+.sec{background:var(--bg-raised);border-radius:var(--radius);padding:11px;border:1px solid var(--border)}
+.sec-title{font-size:10px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;justify-content:space-between}
+.sec-title .sa{display:flex;gap:3px}
+.sec-title .sa button{font-size:9px;padding:2px 7px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;text-transform:uppercase;letter-spacing:.04em}
+.sec-title .sa button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
+
 .mode-tabs{display:flex;gap:1px;background:var(--bg-input);border-radius:var(--radius-sm);padding:2px}
-.mode-tab{
-  flex:1;padding:6px 8px;background:transparent;border:none;color:var(--text-muted);
-  border-radius:var(--radius-sm);cursor:pointer;font-size:12px;text-align:center;
-  transition:all .15s;-webkit-tap-highlight-color:transparent;font-family:var(--font);font-weight:500;
-}
-.mode-tab.active{background:var(--accent);color:#1a1815;font-weight:600}
-.mode-tab:hover:not(.active){color:var(--text-dim)}
+.mtab{flex:1;padding:6px 8px;background:transparent;border:none;color:var(--text-muted);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-family:var(--font);font-weight:500;text-align:center;transition:all .15s}
+.mtab.on{background:var(--accent);color:#1a1815;font-weight:600}
+.mtab:hover:not(.on){color:var(--text-dim)}
 
-/* Form controls */
-.form-group{margin-bottom:7px}
-.form-group:last-child{margin-bottom:0}
-.form-group label{
-  display:flex;align-items:center;justify-content:space-between;
-  font-size:11px;color:var(--text-dim);margin-bottom:3px;font-weight:500;
-}
-.form-group input[type="text"],
-.form-group select{
-  width:100%;padding:7px 9px;background:var(--bg-input);border:1px solid var(--border);
-  border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:var(--font);
-  outline:none;transition:border-color .15s;
-}
-.form-group input[type="text"]:focus,
-.form-group select:focus{border-color:var(--accent)}
-.form-group input[type="text"]::placeholder{color:var(--text-muted)}
-.form-group input[type="range"]{
-  -webkit-appearance:none;appearance:none;width:100%;height:4px;
-  border-radius:2px;background:var(--bg-input);outline:none;cursor:pointer;
-}
-.form-group input[type="range"]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
-  background:var(--accent);cursor:pointer;border:2px solid var(--bg-raised);
-  box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .1s;
-}
-.form-group input[type="range"]::-webkit-slider-thumb:active{transform:scale(1.15)}
-.form-group input[type="color"]{
-  width:32px;height:26px;border:1px solid var(--border);border-radius:var(--radius-sm);
-  cursor:pointer;background:transparent;padding:2px;
-}
-.form-row{display:flex;gap:8px;align-items:end}
-.form-row .form-group{flex:1}
-.form-group .value-label{
-  font-size:10px;color:var(--accent);font-family:var(--font-mono);font-weight:500;letter-spacing:.02em;
-}
-
-.select-bar{
-  display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);
-}
-.select-bar label{cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap}
-.select-bar input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
-.hint-text{font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.5}
-
-/* Auto-filename toggle */
-.auto-filename-bar{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
-}
-.auto-filename-bar label{
-  font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer;
-}
-.auto-filename-bar input[type="checkbox"]{accent-color:var(--accent)}
-.auto-filename-bar .af-hint{
-  font-size:9px;color:var(--text-muted);font-family:var(--font-mono);
-}
+.fg{margin-bottom:7px}.fg:last-child{margin-bottom:0}
+.fg label{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:3px;font-weight:500}
+.fg input[type="text"],.fg select{width:100%;padding:7px 9px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:var(--font);outline:none}
+.fg input[type="text"]:focus,.fg select:focus{border-color:var(--accent)}
+.fg input[type="text"]::placeholder{color:var(--text-muted)}
+.fg input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--bg-input);outline:none;cursor:pointer}
+.fg input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg-raised);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.fg input[type="range"]::-webkit-slider-thumb:active{transform:scale(1.15)}
+.fg input[type="color"]{width:32px;height:26px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:transparent;padding:2px}
+.fr{display:flex;gap:8px;align-items:end}.fr .fg{flex:1}
+.vl{font-size:10px;color:var(--accent);font-family:var(--font-mono);font-weight:500;letter-spacing:.02em}
+.sel-bar{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim)}
+.sel-bar label{cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.sel-bar input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+.hint{font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.4}
+.af-bar{display:flex;align-items:center;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+.af-bar label{font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer}
+.af-bar input[type="checkbox"]{accent-color:var(--accent)}
+.af-hint{font-size:9px;color:var(--text-muted);font-family:var(--font-mono)}
 
 /* Buttons */
-.btn{
-  padding:7px 13px;border:none;border-radius:var(--radius-sm);
-  font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;
-  white-space:nowrap;font-family:var(--font);letter-spacing:.02em;
-  -webkit-tap-highlight-color:transparent;
-}
-.btn-primary{background:var(--accent);color:#1a1815}
-.btn-primary:hover{background:#e0ad50}
-.btn-secondary{background:transparent;color:var(--text-dim);border:1px solid var(--border)}
-.btn-secondary:hover{border-color:var(--text-dim);color:var(--text)}
-.btn-download{
-  flex:1;padding:9px 8px;background:var(--accent);color:#1a1815;
-  font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-sm);
-}
-.btn-download:hover{background:#e0ad50}
-.btn-download:disabled{background:var(--bg-input);color:var(--text-muted);cursor:not-allowed}
-.btn-outline{
-  flex:1;padding:9px 8px;background:transparent;border:1px solid var(--accent);
-  color:var(--accent);font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-sm);
-}
-.btn-outline:hover{background:var(--accent-glow)}
-.btn-outline:disabled{border-color:var(--border);color:var(--text-muted);cursor:not-allowed}
-.download-group{display:flex;gap:5px}
+.btn{padding:7px 13px;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;white-space:nowrap;font-family:var(--font);letter-spacing:.02em}
+.btn-pri{background:var(--accent);color:#1a1815}.btn-pri:hover{background:#e0ad50}
+.btn-sec{background:transparent;color:var(--text-dim);border:1px solid var(--border)}.btn-sec:hover{border-color:var(--text-dim);color:var(--text)}
+.btn-dl{flex:1;padding:9px 8px;background:var(--accent);color:#1a1815;font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:var(--font)}
+.btn-dl:hover{background:#e0ad50}
+.btn-dl:disabled{background:var(--bg-input);color:var(--text-muted);cursor:not-allowed}
+.btn-ol{flex:1;padding:9px 8px;background:transparent;border:1px solid var(--accent);color:var(--accent);font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font)}
+.btn-ol:hover{background:var(--accent-glow)}
+.btn-ol:disabled{border-color:var(--border);color:var(--text-muted);cursor:not-allowed}
+.dl-grp{display:flex;gap:5px}
 
-/* Processing overlay */
-.processing-overlay{
-  position:fixed;top:0;left:0;width:100%;height:100%;
-  background:rgba(23,22,26,.92);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px);
-}
-.processing-overlay .spinner{
-  width:36px;height:36px;border:2px solid var(--border);
-  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
-}
+/* Processing */
+.proc-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(23,22,26,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px)}
+.proc-spinner{width:36px;height:36px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.processing-overlay p{
-  margin-top:14px;color:var(--text-dim);font-size:13px;
-  font-family:var(--font-mono);letter-spacing:.04em;
-}
+.proc-overlay p{margin-top:14px;color:var(--text-dim);font-size:13px;font-family:var(--font-mono);letter-spacing:.04em}
 
-/* Toast */
-.toast{
-  position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-  background:var(--bg-raised);color:var(--accent);padding:8px 20px;
-  border-radius:var(--radius);font-size:13px;z-index:1001;
-  opacity:0;transition:opacity .25s;pointer-events:none;
-  border:1px solid var(--accent);font-family:var(--font-mono);letter-spacing:.03em;
-}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--bg-raised);color:var(--accent);padding:8px 20px;border-radius:var(--radius);font-size:13px;z-index:1001;opacity:0;transition:opacity .25s;pointer-events:none;border:1px solid var(--accent);font-family:var(--font-mono)}
 .toast.show{opacity:1}
 
-/* Image name tag on canvas */
-.image-name-tag{
-  position:absolute;top:8px;left:8px;
-  background:rgba(0,0,0,.6);color:var(--text-dim);font-size:10px;
-  padding:3px 7px;border-radius:var(--radius-sm);pointer-events:none;
-  font-family:var(--font-mono);letter-spacing:.03em;border:1px solid rgba(255,255,255,.06);
+/* Controls handle & backdrop (mobile) */
+.ctrl-handle{display:none;width:28px;height:3px;background:var(--text-muted);border-radius:2px;margin:8px auto 4px;opacity:.5}
+.ctrl-backdrop{display:none}
+
+/* Sheet header (mobile only) */
+.sheet-hd{display:none;align-items:center;justify-content:space-between;padding:8px 16px 6px;flex-shrink:0}
+.sheet-hd .sht{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.03em}
+.sheet-hd .shx{width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* Float quick bar (mobile only) */
+.float-quick{display:none;position:absolute;top:8px;right:8px;z-index:9;gap:4px}
+.fqbtn{width:32px;height:32px;border-radius:50%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-dim);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+
+/* =========================================== */
+/* ===== RESPONSIVE: Tablet (<900px) ========= */
+/* =========================================== */
+@media(max-width:899px){
+  .sidebar{width:280px;min-width:280px}
+  .bar-tools{gap:4px;padding:4px 8px}
+  .search-wrap{max-width:140px}
+  .thumb-strip{min-height:46px;padding:4px 8px;gap:3px}
 }
 
-/* Controls handle (mobile) */
-.controls-handle{display:none;width:28px;height:3px;background:var(--border);border-radius:2px;margin:8px auto 0}
-.controls-backdrop{display:none}
-
-/* ===== Mobile ===== */
+/* =========================================== */
+/* ===== RESPONSIVE: Mobile (<769px) ========= */
+/* =========================================== */
 @media(max-width:768px){
-  .header{height:44px;padding:0 10px}
+  .header{height:42px;padding:0 10px}
   .header-logo h1{font-size:12px}
   .header .mobile-toggle{display:flex}
   .header .actions .btn.hide-mobile{display:none}
-  .header .actions .btn{padding:5px 10px;font-size:11px;height:28px}
-  .container{flex-direction:column;position:relative}
-  .preview{flex:1;min-height:260px}
-  .preview-canvas-area{padding:10px}
-  .preview .drop-zone{padding:36px 18px;max-width:260px}
-  .preview .drop-zone p{font-size:12px}
-  .upload-icon{width:36px;height:36px}
-  .bottom-bar-tools{padding:4px 8px;gap:4px}
-  .thumbnail-strip{min-height:48px;padding:4px 8px;gap:4px}
-  .thumb,.thumbnail-strip .add-btn{width:36px;height:36px;min-width:36px}
-  .zoom-controls{bottom:8px;right:8px;padding:2px}
-  .zoom-btn{width:28px;height:28px;font-size:14px}
-  .zoom-label{font-size:9px;min-width:36px}
+  .header .actions .btn{font-size:11px;padding:4px 9px;height:28px}
+  .main{position:relative}
 
-  /* Mobile: bottom sheet settings panel */
-  .controls{
-    position:fixed;top:auto;bottom:0;left:0;right:0;width:100%;min-width:0;
-    max-height:72vh;
-    z-index:50;
-    transform:translateY(100%);
-    border-left:none;
-    border-radius:16px 16px 0 0;
+  /* Sidebar → fixed bottom sheet (NOT fullscreen) */
+  .sidebar{
+    position:fixed;bottom:0;left:0;right:0;width:100%;min-width:0;
+    max-height:68vh;z-index:50;transform:translateY(100%);
+    border-left:none;border-radius:16px 16px 0 0;
     box-shadow:0 -4px 24px rgba(0,0,0,.55);
-    transition:transform .32s cubic-bezier(.22,.61,.36,1);
+    transition:transform .3s cubic-bezier(.22,.61,.36,1);
     display:flex;flex-direction:column;
   }
-  .controls.open{transform:translateY(0)}
-  .controls-scroll{padding:0 12px 16px;flex:1;overflow-y:auto}
+  .sidebar.open{transform:translateY(0)}
+  .side-scroll{padding:0 12px 16px;flex:1;overflow-y:auto}
+  .sheet-hd{display:flex}.ctrl-handle{display:block}
+  .ctrl-backdrop{display:block;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.35);z-index:49;opacity:0;pointer-events:none;transition:opacity .25s}
+  .ctrl-backdrop.open{opacity:1;pointer-events:auto}
 
-  /* Mobile: sheet header */
-  .sheet-header{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:10px 16px 8px;flex-shrink:0;
-  }
-  .sheet-header-title{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.03em}
-  .sheet-close-btn{
-    width:30px;height:30px;border-radius:50%;border:1px solid var(--border);
-    background:transparent;color:var(--text-dim);font-size:16px;
-    cursor:pointer;display:flex;align-items:center;justify-content:center;
-    transition:all .12s;
-  }
-  .sheet-close-btn:hover{border-color:var(--accent);color:var(--accent)}
-  .controls-handle{
-    display:block;width:32px;height:4px;
-    background:var(--text-muted);border-radius:2px;
-    margin:8px auto 4px;opacity:.5;
-  }
+  /* Float quick bar */
+  .float-quick{display:flex}
 
-  /* Backdrop: dims preview but keeps it visible */
-  .controls-backdrop{
-    display:block;position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,.35);z-index:49;
-    opacity:0;pointer-events:none;
-    transition:opacity .25s;
-  }
-  .controls-backdrop.open{opacity:1;pointer-events:auto}
-  .image-list-overlay{max-height:260px}
-
-  /* Quick-action floating bar on preview */
-  .mobile-quick-bar{
-    position:absolute;top:8px;right:8px;z-index:8;
-    display:flex;gap:4px;
-  }
-  .mobile-quick-btn{
-    width:32px;height:32px;border-radius:50%;
-    background:var(--bg-surface);border:1px solid var(--border);
-    color:var(--text-dim);font-size:13px;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;
-    box-shadow:0 2px 8px rgba(0,0,0,.4);
-    transition:all .12s;
-  }
-  .mobile-quick-btn:active{border-color:var(--accent);color:var(--accent)}
+  /* Bottom bar: compact */
+  .bar-tools{padding:3px 6px;gap:3px;flex-wrap:wrap}
+  .search-wrap{flex:1;max-width:none;min-width:80px}
+  .search-wrap input{font-size:10px;padding:4px 6px 4px 22px}
+  .nav-pos{font-size:9px}
+  .nbtn{width:22px;height:22px;font-size:12px}
+  .thumb-strip{min-height:44px;padding:3px 6px;gap:3px}
+  .thumb,.add-thumb{width:34px;height:34px;min-width:34px}
+  .add-thumb{font-size:16px}
+  .canvas-area{padding:8px}
+  .float-zoom{bottom:8px;right:8px;padding:2px}
+  .zbtn{width:26px;height:26px;font-size:14px}
+  .drop-zone{padding:32px 16px;max-width:260px}
+  .drop-zone p{font-size:12px}
+  .upload-icon{width:32px;height:32px}
+  .list-overlay{max-height:220px}
 }
-@media(min-width:769px){
-  .sheet-header{display:none}
-  .mobile-quick-bar{display:none}
+
+/* Very small screens (<380px) */
+@media(max-width:379px){
+  .bar-tools{gap:2px}
+  .search-wrap{flex:2}
+  .nav-btns{gap:1px}
+  .thumb-strip{min-height:40px;padding:2px 4px;gap:2px}
+  .thumb,.add-thumb{width:30px;height:30px;min-width:30px}
+  .float-zoom{bottom:4px;right:4px;padding:1px}
+  .zbtn{width:22px;height:22px;font-size:12px}
+  .zlabel{font-size:9px;min-width:32px}
+  .float-quick{top:4px;right:4px;gap:2px}
+  .fqbtn{width:28px;height:28px;font-size:12px}
 }
+
+/* Touch-friendly */
 @media(hover:none) and (pointer:coarse){
-  .form-group input[type="range"]{height:6px}
-  .form-group input[type="range"]::-webkit-slider-thumb{width:22px;height:22px}
-  .btn,.btn-download,.btn-outline{min-height:38px}
-  .mode-tab{padding:8px}
-  .zoom-btn{width:30px;height:30px;font-size:18px}
-  .nav-btn{width:28px;height:28px}
+  .fg input[type="range"]{height:6px}
+  .fg input[type="range"]::-webkit-slider-thumb{width:22px;height:22px}
+  .btn,.btn-dl,.btn-ol{min-height:38px}
+  .mtab{padding:8px}
 }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="header-logo">
-    <div class="logo-mark"></div>
-    <h1><span>Watermark</span> Tool</h1>
-  </div>
-  <div class="actions">
-    <button class="btn btn-secondary hide-mobile" onclick="resetAll()">清除全部</button>
-    <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">+ 添加图片</button>
-    <button class="btn btn-secondary mobile-toggle" id="mobileSettingsBtn" onclick="toggleMobileSettings()" title="设置">
-      <span class="settings-icon"><span></span><span></span><span></span></span>
-    </button>
-  </div>
-</div>
-
-<div class="container">
-  <!-- Preview -->
-  <div class="preview" id="previewArea">
-    <div class="preview-canvas-area" id="canvasArea">
-      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <div class="upload-icon"></div>
-        <p>拖拽图片到此处<br>或 <strong>点击选择文件</strong>（支持多选）<br>也可直接 <strong>Ctrl+V</strong> 粘贴</p>
-        <input type="file" id="fileInput" accept="image/*" multiple>
-      </div>
-      <div class="canvas-wrapper" id="canvasWrapper" style="display:none;">
-        <canvas id="mainCanvas"></canvas>
-        <div class="image-name-tag" id="imageNameTag"></div>
-      </div>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">
+      <div class="logo-mark"></div>
+      <h1><span>Watermark</span> Tool</h1>
     </div>
-
-    <!-- Zoom controls (floating) -->
-    <div class="zoom-controls" id="zoomControls" style="display:none;">
-      <button class="zoom-btn" onclick="zoomOut()" title="缩小">−</button>
-      <span class="zoom-label" id="zoomLabel" onclick="zoomReset()" title="重置缩放">100%</span>
-      <button class="zoom-btn" onclick="zoomIn()" title="放大">+</button>
-      <div class="zoom-divider"></div>
-      <button class="zoom-btn" onclick="zoomFit()" title="适合窗口">⊡</button>
-    </div>
-
-    <!-- Mobile quick-action floating bar -->
-    <div class="mobile-quick-bar" id="mobileQuickBar" style="display:none;">
-      <button class="mobile-quick-btn" onclick="downloadCurrent()" title="下载当前">↓</button>
-      <button class="mobile-quick-btn" onclick="toggleMobileSettings()" title="设置">☰</button>
-    </div>
-
-    <!-- Bottom Bar: search + nav + list view -->
-    <div class="bottom-bar" id="bottomBar" style="display:none;">
-      <div class="bottom-bar-tools">
-        <div class="search-wrap">
-          <span class="search-icon">&#x2315;</span>
-          <input type="text" id="imageSearch" placeholder="搜索文件名..." oninput="onSearchInput()">
-        </div>
-        <div class="nav-btns">
-          <button class="nav-btn" onclick="navPrev()" title="上一张 (←)">&#x2039;</button>
-          <span class="nav-pos" id="navPos" onclick="focusJump()" title="点击跳转">1/1</span>
-          <button class="nav-btn" onclick="navNext()" title="下一张 (→)">&#x203A;</button>
-        </div>
-        <input type="number" class="nav-jump" id="navJump" min="1" placeholder="跳转"
-          onkeydown="if(event.key==='Enter')jumpToImage()" style="display:none;">
-        <button class="view-toggle" id="viewToggle" onclick="toggleListView()" title="列表视图">
-          <span class="list-dot"><span></span><span></span><span></span><span></span></span>
-        </button>
-      </div>
-
-      <!-- Thumbnail strip -->
-      <div class="thumbnail-strip" id="thumbnailStrip">
-        <button class="add-btn" onclick="document.getElementById('fileInput').click()" title="添加图片">+</button>
-        <span class="count-badge" id="countBadge"></span>
-      </div>
-
-      <!-- Image list view overlay -->
-      <div class="image-list-overlay" id="imageListOverlay">
-        <div class="image-list-scroll" id="imageListScroll"></div>
-        <div class="image-list-empty" id="imageListEmpty" style="display:none;">无匹配图片</div>
-      </div>
+    <div class="actions">
+      <button class="btn btn-sec hide-mobile" onclick="resetAll()">清除全部</button>
+      <button class="btn btn-sec" onclick="document.getElementById('fileInput').click()">+ 添加</button>
+      <button class="btn btn-sec mobile-toggle" onclick="toggleSettings()">
+        <span class="settings-icon"><span></span><span></span><span></span></span>
+      </button>
     </div>
   </div>
 
-  <!-- Controls backdrop (mobile) -->
-  <div class="controls-backdrop" id="controlsBackdrop" onclick="closeMobileSettings()"></div>
+  <!-- Main area -->
+  <div class="main">
+    <!-- Content (preview + bottom bar) -->
+    <div class="content">
+      <div class="canvas-area" id="canvasArea">
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon"></div>
+          <p>拖拽图片 / <strong>点击选择</strong>（多选）<br><strong>Ctrl+V</strong> 粘贴</p>
+          <input type="file" id="fileInput" accept="image/*" multiple>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap" style="display:none">
+          <canvas id="mainCanvas"></canvas>
+          <div class="img-tag" id="imgTag"></div>
+        </div>
 
-  <!-- Controls -->
-  <div class="controls" id="controlsPanel">
-    <div class="sheet-header">
-      <span class="sheet-header-title">水印设置</span>
-      <button class="sheet-close-btn" onclick="closeMobileSettings()">&times;</button>
+        <!-- Float: zoom -->
+        <div class="float-zoom" id="floatZoom" style="display:none">
+          <button class="zbtn" onclick="zoomOut()" title="缩小">-</button>
+          <span class="zlabel" id="zLabel" onclick="zoomReset()">100%</span>
+          <button class="zbtn" onclick="zoomIn()" title="放大">+</button>
+          <span class="zdiv"></span>
+          <button class="zbtn" onclick="zoomFit()" title="适应">&#x21C4;</button>
+        </div>
+
+        <!-- Float: quick actions (mobile) -->
+        <div class="float-quick" id="floatQuick" style="display:none">
+          <button class="fqbtn" onclick="downloadCurrent()" title="下载">&#x2193;</button>
+          <button class="fqbtn" onclick="toggleSettings()" title="设置">&#x2630;</button>
+        </div>
+      </div>
+
+      <!-- Bottom bar -->
+      <div class="bottom-bar" id="bottomBar" style="display:none">
+        <div class="bar-tools">
+          <div class="search-wrap">
+            <span class="search-icon">&#x2315;</span>
+            <input type="text" id="imgSearch" placeholder="搜索文件名..." oninput="onSearch()">
+          </div>
+          <div class="nav-btns">
+            <button class="nbtn" onclick="navPrev()" title="上一张">&#x2039;</button>
+            <span class="nav-pos" id="navPos" onclick="focusJump()">1/1</span>
+            <button class="nbtn" onclick="navNext()" title="下一张">&#x203A;</button>
+          </div>
+          <input type="number" class="nav-jump" id="navJump" min="1" placeholder="#" onkeydown="if(event.key==='Enter')jumpTo()" style="display:none">
+          <button class="view-toggle" id="viewToggle" onclick="toggleList()">
+            <span class="lidot"><span></span><span></span><span></span><span></span></span>
+          </button>
+        </div>
+        <div class="thumb-strip" id="thumbStrip">
+          <button class="add-thumb" onclick="document.getElementById('fileInput').click()">+</button>
+        </div>
+        <div class="list-overlay" id="listOverlay">
+          <div class="list-scroll" id="listScroll"></div>
+          <div class="lempty" id="listEmpty" style="display:none">无匹配图片</div>
+        </div>
+      </div>
     </div>
-    <div class="controls-handle" id="controlsHandle"></div>
-    <div class="controls-scroll">
-      <!-- Watermark mode -->
-      <div class="section">
-        <div class="section-title">水印模式
-          <div class="section-actions"><button onclick="applyToAll('mode')">全部应用</button></div>
-        </div>
-        <div class="mode-tabs">
-          <button class="mode-tab active" data-mode="single" onclick="switchMode('single')">单个水印</button>
-          <button class="mode-tab" data-mode="tile" onclick="switchMode('tile')">平铺填充</button>
-        </div>
-      </div>
 
-      <!-- One-click apply all -->
-      <div class="section" style="border-color:var(--accent);background:var(--accent-glow)">
-        <button class="btn btn-primary" onclick="applyAllSettings()" style="width:100%;padding:10px;font-size:13px;letter-spacing:.04em">
-          一键应用当前设置到全部图片
-        </button>
-        <p style="font-size:9px;color:var(--text-muted);text-align:center;margin-top:4px">
-          将当前图片的水印模式、文字、位置、平铺等全部设置复制到所有图片
-        </p>
+    <!-- Sidebar controls -->
+    <div class="ctrl-backdrop" id="ctrlBackdrop" onclick="closeSettings()"></div>
+    <div class="sidebar" id="sidebar">
+      <div class="sheet-hd">
+        <span class="sht">水印设置</span>
+        <button class="shx" onclick="closeSettings()">&times;</button>
       </div>
+      <div class="ctrl-handle"></div>
+      <div class="side-scroll">
+        <!-- Mode -->
+        <div class="sec">
+          <div class="sec-title">水印模式<span class="sa"><button onclick="applyToAll('mode')">全部应用</button></span></div>
+          <div class="mode-tabs">
+            <button class="mtab on" data-mode="single" onclick="switchMode('single')">单个水印</button>
+            <button class="mtab" data-mode="tile" onclick="switchMode('tile')">平铺填充</button>
+          </div>
+        </div>
 
-      <!-- Text settings -->
-      <div class="section">
-        <div class="section-title">水印文字
-          <div class="section-actions"><button onclick="applyToAll('text')">全部应用</button></div>
+        <!-- Apply all settings -->
+        <div class="sec" style="border-color:var(--accent);background:var(--accent-glow)">
+          <button class="btn btn-pri" onclick="applyAllSettings()" style="width:100%;padding:10px;font-size:13px;letter-spacing:.04em">一键应用当前设置到全部图片</button>
+          <p style="font-size:9px;color:var(--text-muted);text-align:center;margin-top:4px">将水印模式、文字、位置、平铺等全部设置复制到所有图片</p>
         </div>
-        <div class="form-group">
-          <input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="saveConfigAndRender()">
-        </div>
-        <div class="auto-filename-bar">
-          <label><input type="checkbox" id="autoFilename" onchange="onAutoFilenameToggle()"> 使用文件名作为水印</label>
-          <span class="af-hint" id="afHint"></span>
-        </div>
-        <div class="form-row" style="margin-top:6px;">
-          <div class="form-group">
-            <label>字体</label>
-            <select id="wmFont" onchange="saveConfigAndRender()">
-              <option value="Microsoft YaHei" selected>微软雅黑</option>
-              <option value="PingFang SC">苹方</option>
-              <option value="SimHei">黑体</option>
-              <option value="SimSun">宋体</option>
-              <option value="KaiTi">楷体</option>
-              <option value="Arial">Arial</option>
-              <option value="sans-serif">Sans-serif</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>字号<span class="value-label" id="fontSizeLabel">32px</span></label>
-            <input type="range" id="wmFontSize" min="12" max="120" value="32" oninput="onFontSizeChange()">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>颜色</label><input type="color" id="wmColor" value="#ffffff" onchange="saveConfigAndRender()"></div>
-          <div class="form-group">
-            <label>不透明度<span class="value-label" id="opacityLabel">0.30</span></label>
-            <input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOpacityChange()">
-          </div>
-        </div>
-      </div>
 
-      <!-- Single mode -->
-      <div class="section" id="singleControls">
-        <div class="section-title">单个水印设置
-          <div class="section-actions"><button onclick="applyToAll('single')">全部应用</button></div>
-        </div>
-        <div class="form-group">
-          <label>旋转<span class="value-label" id="angleLabel">-30°</span></label>
-          <input type="range" id="wmAngle" min="-180" max="180" value="-30" oninput="onAngleChange()">
-        </div>
-        <div class="form-row" style="margin-bottom:5px">
-          <div class="form-group">
-            <label>水平<span class="value-label" id="posXLabel">50%</span></label>
-            <input type="range" id="wmPosX" min="0" max="100" value="50" oninput="onPosXChange()">
+        <!-- Text -->
+        <div class="sec">
+          <div class="sec-title">水印文字<span class="sa"><button onclick="applyToAll('text')">全部应用</button></span></div>
+          <div class="fg"><input type="text" id="wmText" value="我的水印" placeholder="输入水印文字" oninput="saveCfg()"></div>
+          <div class="af-bar">
+            <label><input type="checkbox" id="autoFilename" onchange="onAutoFn()"> 使用文件名作为水印</label>
+            <span class="af-hint" id="afHint"></span>
           </div>
-          <div class="form-group">
-            <label>垂直<span class="value-label" id="posYLabel">50%</span></label>
-            <input type="range" id="wmPosY" min="0" max="100" value="50" oninput="onPosYChange()">
+          <div class="fr" style="margin-top:6px">
+            <div class="fg"><label>字体</label><select id="wmFont" onchange="saveCfg()"><option value="Microsoft YaHei" selected>微软雅黑</option><option value="PingFang SC">苹方</option><option value="SimHei">黑体</option><option value="SimSun">宋体</option><option value="KaiTi">楷体</option><option value="Arial">Arial</option></select></div>
+            <div class="fg"><label>字号<span class="vl" id="fsLabel">32px</span></label><input type="range" id="wmFontSize" min="12" max="120" value="32" oninput="onFs()"></div>
+          </div>
+          <div class="fr">
+            <div class="fg"><label>颜色</label><input type="color" id="wmColor" value="#ffffff" onchange="saveCfg()"></div>
+            <div class="fg"><label>不透明度<span class="vl" id="opLabel">0.30</span></label><input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOp()"></div>
           </div>
         </div>
-        <p class="hint-text">在图片上拖动水印可实时调整位置 · Ctrl+滚轮缩放</p>
-        <div class="select-bar" style="margin-top:5px">
-          <label><input type="checkbox" id="syncPos"> 所有图片统一位置</label>
-        </div>
-      </div>
 
-      <!-- Tile mode -->
-      <div class="section" id="tileControls" style="display:none">
-        <div class="section-title">平铺设置
-          <div class="section-actions"><button onclick="applyToAll('tile')">全部应用</button></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>列数<span class="value-label" id="colsLabel">4</span></label>
-            <input type="range" id="tileCols" min="1" max="12" value="4" oninput="onTileChange()">
+        <!-- Single -->
+        <div class="sec" id="singleSec">
+          <div class="sec-title">单个水印设置<span class="sa"><button onclick="applyToAll('single')">全部应用</button></span></div>
+          <div class="fg"><label>旋转<span class="vl" id="aLabel">-30°</span></label><input type="range" id="wmAngle" min="-180" max="180" value="-30" oninput="onAng()"></div>
+          <div class="fr" style="margin-bottom:5px">
+            <div class="fg"><label>水平<span class="vl" id="pxLabel">50%</span></label><input type="range" id="wmPosX" min="0" max="100" value="50" oninput="onPx()"></div>
+            <div class="fg"><label>垂直<span class="vl" id="pyLabel">50%</span></label><input type="range" id="wmPosY" min="0" max="100" value="50" oninput="onPy()"></div>
           </div>
-          <div class="form-group">
-            <label>行数<span class="value-label" id="rowsLabel">3</span></label>
-            <input type="range" id="tileRows" min="1" max="10" value="3" oninput="onTileChange()">
-          </div>
+          <p class="hint">在图片上拖动水印实时调整位置 &middot; Ctrl+滚轮缩放</p>
+          <div class="sel-bar" style="margin-top:5px"><label><input type="checkbox" id="syncPos"> 所有图片统一位置</label></div>
         </div>
-        <div class="form-group">
-          <label>旋转<span class="value-label" id="tileAngleLabel">-30°</span></label>
-          <input type="range" id="tileAngle" min="-180" max="180" value="-30" oninput="onTileAngleChange()">
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>水平偏移<span class="value-label" id="offsetXLabel">0%</span></label>
-            <input type="range" id="tileOffsetX" min="-50" max="50" value="0" oninput="onTileOffsetChange()">
-          </div>
-          <div class="form-group">
-            <label>垂直偏移<span class="value-label" id="offsetYLabel">0%</span></label>
-            <input type="range" id="tileOffsetY" min="-50" max="50" value="0" oninput="onTileOffsetChange()">
-          </div>
-        </div>
-      </div>
 
-      <!-- Selection & Download -->
-      <div class="select-bar">
-        <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> 全选</label>
-        <span style="flex:1"></span>
-        <span id="selectCount" style="color:var(--accent);font-family:var(--font-mono)">0</span>
-        <span style="color:var(--text-muted)">/</span>
-        <span id="totalCount" style="font-family:var(--font-mono)">0</span>
-        <span style="color:var(--text-muted)">张</span>
-      </div>
+        <!-- Tile -->
+        <div class="sec" id="tileSec" style="display:none">
+          <div class="sec-title">平铺设置<span class="sa"><button onclick="applyToAll('tile')">全部应用</button></span></div>
+          <div class="fr">
+            <div class="fg"><label>列数<span class="vl" id="cLabel">4</span></label><input type="range" id="tileCols" min="1" max="12" value="4" oninput="onTc()"></div>
+            <div class="fg"><label>行数<span class="vl" id="rLabel">3</span></label><input type="range" id="tileRows" min="1" max="10" value="3" oninput="onTc()"></div>
+          </div>
+          <div class="fg"><label>旋转<span class="vl" id="taLabel">-30°</span></label><input type="range" id="tileAngle" min="-180" max="180" value="-30" oninput="onTa()"></div>
+          <div class="fr">
+            <div class="fg"><label>水平偏移<span class="vl" id="oxLabel">0%</span></label><input type="range" id="tileOffsetX" min="-50" max="50" value="0" oninput="onTo()"></div>
+            <div class="fg"><label>垂直偏移<span class="vl" id="oyLabel">0%</span></label><input type="range" id="tileOffsetY" min="-50" max="50" value="0" oninput="onTo()"></div>
+          </div>
+        </div>
 
-      <div class="download-group">
-        <button class="btn btn-download" id="btnDownloadCurrent" disabled onclick="downloadCurrent()">下载当前</button>
-        <button class="btn btn-download" id="btnDownloadSelected" disabled onclick="downloadSelected()">下载选中</button>
+        <!-- Select & Download -->
+        <div class="sel-bar">
+          <label><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> 全选</label>
+          <span style="flex:1"></span>
+          <span id="selCnt" style="color:var(--accent);font-family:var(--font-mono)">0</span>
+          <span style="color:var(--text-muted)">/</span>
+          <span id="totalCnt" style="font-family:var(--font-mono)">0</span>
+          <span style="color:var(--text-muted)"> 张</span>
+        </div>
+        <div class="dl-grp">
+          <button class="btn btn-dl" id="btnDlCur" disabled onclick="downloadCurrent()">下载当前</button>
+          <button class="btn btn-dl" id="btnDlSel" disabled onclick="downloadSelected()">下载选中</button>
+        </div>
+        <button class="btn btn-ol" id="btnDlAll" disabled onclick="downloadAllZip()" style="width:100%">打包下载全部 (.zip)</button>
+        <button class="btn btn-sec" id="btnClear" disabled onclick="resetAll()" style="width:100%">清除全部图片</button>
       </div>
-      <button class="btn btn-outline" id="btnDownloadAll" disabled onclick="downloadAllZip()" style="width:100%">打包下载全部 (.zip)</button>
-      <button class="btn btn-secondary" id="btnClear" disabled onclick="resetAll()" style="width:100%">清除全部图片</button>
     </div>
   </div>
 </div>
 
-<div class="processing-overlay" id="processingOverlay" style="display:none">
-  <div class="spinner"></div>
-  <p id="processingMsg">处理中...</p>
+<div class="proc-overlay" id="procOverlay" style="display:none">
+  <div class="proc-spinner"></div>
+  <p id="procMsg">处理中...</p>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-// ==================== Default config ====================
-function defaultConfig(){return{
-  mode:'single',text:'我的水印',font:'Microsoft YaHei',fontSize:32,color:'#ffffff',opacity:.3,
-  wmPos:{x:.5,y:.5},angle:-30,tileCols:4,tileRows:3,tileAngle:-30,tileOffsetX:0,tileOffsetY:0
-}}
-
 // ==================== State ====================
-let images=[], currentIndex=0, syncPosition=false, dragging=false;
-let zoomLevel=1, listViewOpen=false, imageFilter='';
-let autoFilename=false;
-
-function getCurrentConfig(){return images.length===0?defaultConfig():images[currentIndex].config}
+function dcfg(){return{mode:'single',text:'我的水印',font:'Microsoft YaHei',fontSize:32,color:'#ffffff',opacity:.3,wmPos:{x:.5,y:.5},angle:-30,tileCols:4,tileRows:3,tileAngle:-30,tileOffsetX:0,tileOffsetY:0}}
+let imgs=[], idx=0, syncPos=false, dragging=false, zoom=1, listOpen=false, filter='', autoFn=false;
 
 // ==================== DOM refs ====================
-const dropZone=document.getElementById('dropZone');
-const canvasWrapper=document.getElementById('canvasWrapper');
-const canvasArea=document.getElementById('canvasArea');
-const mainCanvas=document.getElementById('mainCanvas');
-const ctx=mainCanvas.getContext('2d');
-const fileInput=document.getElementById('fileInput');
-const thumbnailStrip=document.getElementById('thumbnailStrip');
-const controlsPanel=document.getElementById('controlsPanel');
-const controlsBackdrop=document.getElementById('controlsBackdrop');
-const bottomBar=document.getElementById('bottomBar');
-const zoomControls=document.getElementById('zoomControls');
-const imageListOverlay=document.getElementById('imageListOverlay');
+const $=s=>document.getElementById(s);
+const dropZone=$('dropZone'),canvasWrap=$('canvasWrap'),canvasArea=$('canvasArea');
+const mc=$('mainCanvas'),ctx=mc.getContext('2d'),fi=$('fileInput');
+const thumbStrip=$('thumbStrip'),sidebar=$('sidebar'),ctrlBackdrop=$('ctrlBackdrop');
+const bottomBar=$('bottomBar'),floatZoom=$('floatZoom'),floatQuick=$('floatQuick');
+const listOverlay=$('listOverlay');
 
 // ==================== Image loading ====================
-fileInput.addEventListener('change',e=>{
-  if(e.target.files.length){loadFiles(Array.from(e.target.files));fileInput.value=''}
-});
-function handleDropFiles(files){
-  const imgFiles=files.filter(f=>f.type.startsWith('image/'));
-  if(imgFiles.length)loadFiles(imgFiles)
-}
+fi.addEventListener('change',e=>{if(e.target.files.length){loadFiles(Array.from(e.target.files));fi.value=''}});
 dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over')});
 dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop',e=>{
-  e.preventDefault();dropZone.classList.remove('drag-over');
-  handleDropFiles(Array.from(e.dataTransfer.files))
-});
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');hDrop(Array.from(e.dataTransfer.files))});
 canvasArea.addEventListener('dragover',e=>e.preventDefault());
-canvasArea.addEventListener('drop',e=>{e.preventDefault();handleDropFiles(Array.from(e.dataTransfer.files))});
-document.addEventListener('paste',e=>{
-  const files=[];
-  for(const item of e.clipboardData.items){if(item.type.startsWith('image/'))files.push(item.getAsFile())}
-  if(files.length)loadFiles(files)
-});
+canvasArea.addEventListener('drop',e=>{e.preventDefault();hDrop(Array.from(e.dataTransfer.files))});
+document.addEventListener('paste',e=>{const f=[];for(const it of e.clipboardData.items)if(it.type.startsWith('image/'))f.push(it.getAsFile());if(f.length)loadFiles(f)});
+
+function hDrop(files){const x=files.filter(f=>f.type.startsWith('image/'));if(x.length)loadFiles(x)}
 
 function loadFiles(files){
-  let loaded=0;const startIdx=images.length,total=files.length,newImages=[];
+  let done=0;const st=imgs.length,tot=files.length,nw=[];
   files.forEach((file,i)=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const img=new Image();
-      img.onload=()=>{
-        const name=file.name||`image_${startIdx+i+1}.png`;
-        newImages.push({
-          _order:startIdx+i,img,name,selected:true,
-          config:{...defaultConfig(),wmPos:{x:.5,y:.5},
-            text:autoFilename?name.replace(/\.[^.]+$/,''):defaultConfig().text}
-        });
-        loaded++;
-        if(loaded===total){
-          newImages.sort((a,b)=>a._order-b._order);
-          newImages.forEach(n=>{delete n._order;images.push(n)});
-          onImagesChanged();currentIndex=startIdx;switchToImage(currentIndex);closeMobileSettings()
-        }
-      };img.src=e.target.result
-    };reader.readAsDataURL(file)
+    const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{
+      const name=file.name||`image_${st+i+1}.png`;
+      nw.push({_o:st+i,img,name,sel:true,cfg:{...dcfg(),wmPos:{x:.5,y:.5},text:autoFn?name.replace(/\.[^.]+$/,''):dcfg().text}});
+      done++;if(done===tot){nw.sort((a,b)=>a._o-b._o);nw.forEach(x=>{delete x._o;imgs.push(x)});onChange();idx=st;switchTo(idx);closeSettings()}
+    };img.src=e.target.result};r.readAsDataURL(file)
   })
 }
 
-function onImagesChanged(){
-  const has=images.length>0;
-  dropZone.style.display=has?'none':'';canvasWrapper.style.display=has?'inline-block':'none';
-  bottomBar.style.display=has?'flex':'none';
-  zoomControls.style.display=has?'flex':'none';
-  document.getElementById('mobileQuickBar').style.display=has?'flex':'none';
-  ['btnDownloadCurrent','btnDownloadSelected','btnDownloadAll','btnClear'].forEach(id=>{
-    document.getElementById(id).disabled=!has
-  });
-  if(!has){mainCanvas.width=0;mainCanvas.height=0;currentIndex=0;document.getElementById('imageNameTag').textContent=''}
-  updateThumbnails();updateCounts();updateNavPos();updateListView()
+function onChange(){
+  const h=imgs.length>0;
+  dropZone.style.display=h?'none':'';canvasWrap.style.display=h?'inline-block':'none';
+  bottomBar.style.display=h?'flex':'none';floatZoom.style.display=h?'flex':'none';
+  floatQuick.style.display=h?'flex':'none';
+  $('btnDlCur').disabled=!h;$('btnDlSel').disabled=!h;$('btnDlAll').disabled=!h;$('btnClear').disabled=!h;
+  if(!h){mc.width=0;mc.height=0;idx=0;$('imgTag').textContent=''}
+  updThumbs();updCnts();updNav();updList()
 }
 
-function getFilteredImages(){
-  if(!imageFilter)return images;
-  const f=imageFilter.toLowerCase();
-  return images.map((item,i)=>({item,i})).filter(x=>x.item.name.toLowerCase().includes(f))
-}
+function filtered(){if(!filter)return imgs;const f=filter.toLowerCase();return imgs.map((it,i)=>({it,i})).filter(x=>x.it.name.toLowerCase().includes(f))}
 
-function updateThumbnails(){
-  const existing=thumbnailStrip.querySelectorAll('.thumb');existing.forEach(t=>t.remove());
-  const filtered=getFilteredImages();
-  filtered.forEach(({item,i})=>{
-    const div=document.createElement('div');
-    div.className='thumb'+(i===currentIndex?' active':'')+(item.selected?' show-check':'');
-    div.innerHTML=`<img src="${item.img.src}" alt=""><span class="thumb-index">${i+1}</span><button class="thumb-remove" title="删除">&times;</button><input type="checkbox" class="thumb-check" ${item.selected?'checked':''} title="选中">`;
-    const addBtn=thumbnailStrip.querySelector('.add-btn');
-    thumbnailStrip.insertBefore(div,addBtn);
-    div.addEventListener('click',e=>{
-      if(e.target.classList.contains('thumb-remove')){e.stopPropagation();removeImage(i);return}
-      if(e.target.classList.contains('thumb-check')){e.stopPropagation();images[i].selected=e.target.checked;div.classList.toggle('show-check',images[i].selected);updateCounts();return}
-      if(i!==currentIndex)switchToImage(i)
-    })
-  });
-  document.getElementById('countBadge').textContent=images.length>0?`共 ${images.length} 张`:''
-}
-
-function updateListView(){
-  if(!listViewOpen)return;
-  const scroll=document.getElementById('imageListScroll');
-  const empty=document.getElementById('imageListEmpty');
-  scroll.innerHTML='';const filtered=getFilteredImages();
-  if(filtered.length===0){empty.style.display='block';return}else{empty.style.display='none'}
-  filtered.forEach(({item,i})=>{
-    const row=document.createElement('div');
-    row.className='image-list-item'+(i===currentIndex?' active':'');
-    row.innerHTML=`<span class="li-index">${i+1}</span><div class="li-thumb"><img src="${item.img.src}" alt=""></div><div class="li-info"><div class="li-name">${item.name}</div><div class="li-dims">${item.img.naturalWidth}×${item.img.naturalHeight}</div></div><div class="li-actions"><button onclick="event.stopPropagation();removeImage(${i})" class="danger" title="删除">×</button></div>`;
-    row.addEventListener('click',()=>{if(i!==currentIndex)switchToImage(i)});
-    scroll.appendChild(row)
+function updThumbs(){
+  const ex=thumbStrip.querySelectorAll('.thumb');ex.forEach(t=>t.remove());
+  filtered().forEach(({it,i})=>{const d=document.createElement('div');
+    d.className='thumb'+(i===idx?' sel':'')+(it.sel?' show-check':'');
+    d.innerHTML=`<img src="${it.img.src}"><span class="tidx">${i+1}</span><button class="tdel">&times;</button><input type="checkbox" class="tchk" ${it.sel?'checked':''}>`;
+    const ab=thumbStrip.querySelector('.add-thumb');thumbStrip.insertBefore(d,ab);
+    d.addEventListener('click',e=>{if(e.target.classList.contains('tdel')){e.stopPropagation();delImg(i);return}if(e.target.classList.contains('tchk')){e.stopPropagation();imgs[i].sel=e.target.checked;d.classList.toggle('show-check',imgs[i].sel);updCnts();return}if(i!==idx)switchTo(i)})
   })
 }
 
-function updateCounts(){
-  const sel=images.filter(i=>i.selected).length;
-  document.getElementById('selectCount').textContent=sel;
-  document.getElementById('totalCount').textContent=images.length;
-  document.getElementById('selectAll').checked=sel===images.length&&images.length>0
+function updList(){if(!listOpen)return;const sc=$('listScroll'),em=$('listEmpty');sc.innerHTML='';const f=filtered();if(!f.length){em.style.display='block';return}em.style.display='none';
+  f.forEach(({it,i})=>{const r=document.createElement('div');r.className='li'+(i===idx?' active':'');
+    r.innerHTML=`<span class="ln">${i+1}</span><div class="lthumb"><img src="${it.img.src}"></div><div class="linfo"><div class="lname">${it.name}</div><div class="ldim">${it.img.naturalWidth}×${it.img.naturalHeight}</div></div><div class="lact"><button onclick="event.stopPropagation();delImg(${i})">×</button></div>`;
+    r.addEventListener('click',()=>{if(i!==idx)switchTo(i)});sc.appendChild(r)})
 }
 
-function updateNavPos(){
-  const total=images.length;
-  document.getElementById('navPos').textContent=total>0?`${currentIndex+1}/${total}`:'0/0';
-  document.getElementById('navJump').max=total
+function updCnts(){const s=imgs.filter(i=>i.sel).length;$('selCnt').textContent=s;$('totalCnt').textContent=imgs.length;$('selectAll').checked=s===imgs.length&&imgs.length>0}
+function updNav(){$('navPos').textContent=imgs.length?`${idx+1}/${imgs.length}`:'0/0'}
+
+function switchTo(i){
+  if(i<0||i>=imgs.length)return;
+  if(imgs.length&&idx<imgs.length)saveCfgTo(imgs[idx].cfg);
+  idx=i;loadCfg(imgs[idx].cfg);fitCanvas();render();updThumbs();updNav();updList();
+  $('imgTag').textContent=imgs[idx].name;updAf();zoomFit();
+  const t=thumbStrip.querySelectorAll('.thumb')[i];if(t)t.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})
 }
 
-function switchToImage(index){
-  if(index<0||index>=images.length)return;
-  if(images.length>0&&currentIndex<images.length)savePanelToConfig(images[currentIndex].config);
-  currentIndex=index;
-  loadConfigToPanel(images[currentIndex].config);
-  fitCanvas();render();updateThumbnails();updateNavPos();updateListView();
-  document.getElementById('imageNameTag').textContent=images[currentIndex].name;
-  // sync auto-filename hint
-  updateAfHint();
-  const thumb=thumbnailStrip.querySelectorAll('.thumb')[index];
-  if(thumb)thumb.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})
-}
-
-function removeImage(index){
-  images.splice(index,1);
-  if(images.length===0){onImagesChanged();return}
-  if(currentIndex>=images.length)currentIndex=images.length-1;
-  onImagesChanged();loadConfigToPanel(images[currentIndex].config);
-  fitCanvas();render();document.getElementById('imageNameTag').textContent=images[currentIndex].name;
-  updateAfHint()
-}
-
-function resetAll(){images=[];currentIndex=0;onImagesChanged();fileInput.value='';loadConfigToPanel(defaultConfig())}
+function delImg(i){imgs.splice(i,1);if(!imgs.length){onChange();return}if(idx>=imgs.length)idx=imgs.length-1;onChange();loadCfg(imgs[idx].cfg);fitCanvas();render();$('imgTag').textContent=imgs[idx].name;updAf();zoomFit()}
+function resetAll(){imgs=[];idx=0;onChange();fi.value='';loadCfg(dcfg());zoom=1;canvasWrap.style.transform='';$('zLabel').textContent='100%'}
 
 // ==================== Zoom ====================
-function setZoom(z,originX,originY){
-  zoomLevel=Math.max(.25,Math.min(3,z));
-  canvasWrapper.style.transform=`scale(${zoomLevel})`;
-  // If origin provided, adjust scroll
-  if(originX!==undefined&&originY!==undefined){
-    const area=canvasArea;const sx=area.scrollLeft,sy=area.scrollTop;
-    const ratio=zoomLevel/(zoomLevel-(z-zoomLevel)); // approximate
-    // Simple: keep center of zoom focal point
-    const dx=originX-area.clientWidth/2,dy=originY-area.clientHeight/2;
-    area.scrollLeft=sx+dx*(zoomLevel/1-1);
-    area.scrollTop=sy+dy*(zoomLevel/1-1);
-  }
-  document.getElementById('zoomLabel').textContent=Math.round(zoomLevel*100)+'%'
-}
-function zoomIn(){setZoom(zoomLevel*1.25)}
-function zoomOut(){setZoom(zoomLevel*.8)}
-function zoomReset(){setZoom(1)}
-function zoomFit(){if(images.length===0)return;const img=images[currentIndex].img;const aw=canvasArea.clientWidth-40,ah=canvasArea.clientHeight-40;const r=Math.min(aw/img.naturalWidth,ah/img.naturalHeight,1);setZoom(r)}
+function setZoom(z){zoom=Math.max(.25,Math.min(3,z));canvasWrap.style.transform=`scale(${zoom})`;$('zLabel').textContent=Math.round(zoom*100)+'%'}
+function zoomIn(){setZoom(zoom*1.25)};function zoomOut(){setZoom(zoom*.8)};function zoomReset(){setZoom(1)}
+function zoomFit(){if(!imgs.length)return;const i=imgs[idx].img,aw=canvasArea.clientWidth-32,ah=canvasArea.clientHeight-32;setZoom(Math.min(aw/i.naturalWidth,ah/i.naturalHeight,1))}
 
-// Ctrl+wheel zoom
-canvasArea.addEventListener('wheel',e=>{
-  if(!e.ctrlKey&&!e.metaKey)return;
-  e.preventDefault();
-  const rect=canvasArea.getBoundingClientRect();
-  const mx=e.clientX-rect.left,my=e.clientY-rect.top;
-  const delta=-e.deltaY*0.002;
-  setZoom(zoomLevel*(1+delta),mx,my)
-},{passive:false});
+canvasArea.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();setZoom(zoom*(1-e.deltaY*.002))},{passive:false});
+let pDist=0,pZoom=1;
+canvasArea.addEventListener('touchstart',e=>{if(e.touches.length===2){pDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);pZoom=zoom}},{passive:false});
+canvasArea.addEventListener('touchmove',e=>{if(e.touches.length===2&&pDist>0){setZoom(pZoom*(Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)/pDist))}},{passive:false});
+canvasArea.addEventListener('touchend',()=>{pDist=0});
 
-// Pinch zoom (mobile)
-let pinchStartDist=0,pinchStartZoom=1;
-canvasArea.addEventListener('touchstart',e=>{
-  if(e.touches.length===2){pinchStartDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);pinchStartZoom=zoomLevel}
-},{passive:false});
-canvasArea.addEventListener('touchmove',e=>{
-  if(e.touches.length===2&&pinchStartDist>0){
-    const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-    setZoom(pinchStartZoom*(dist/pinchStartDist))
-  }
-},{passive:false});
-canvasArea.addEventListener('touchend',()=>{pinchStartDist=0});
+// ==================== Search & Nav ====================
+function onSearch(){filter=$('imgSearch').value;updThumbs();updList()}
+function navPrev(){if(imgs.length)switchTo((idx-1+imgs.length)%imgs.length)}
+function navNext(){if(imgs.length)switchTo((idx+1)%imgs.length)}
+function focusJump(){const j=$('navJump');j.style.display=j.style.display==='none'?'inline-block':'none';if(j.style.display!=='none'){j.value=idx+1;j.focus();j.select()}}
+function jumpTo(){const v=parseInt($('navJump').value);if(v>=1&&v<=imgs.length)switchTo(v-1);$('navJump').style.display='none'}
+function toggleList(){listOpen=!listOpen;listOverlay.classList.toggle('open',listOpen);$('viewToggle').classList.toggle('active',listOpen);thumbStrip.style.display=listOpen?'none':'flex';if(listOpen)updList()}
 
-// ==================== Search & Navigation ====================
-function onSearchInput(){
-  imageFilter=document.getElementById('imageSearch').value;
-  updateThumbnails();updateListView()
-}
-function navPrev(){if(images.length===0)return;switchToImage((currentIndex-1+images.length)%images.length)}
-function navNext(){if(images.length===0)return;switchToImage((currentIndex+1)%images.length)}
-function focusJump(){
-  const j=document.getElementById('navJump');j.style.display=j.style.display==='none'?'inline-block':'none';
-  if(j.style.display!=='none'){j.value=currentIndex+1;j.focus();j.select()}
-}
-function jumpToImage(){
-  const j=document.getElementById('navJump');
-  const n=parseInt(j.value);
-  if(n>=1&&n<=images.length){switchToImage(n-1)}
-  j.style.display='none'
-}
-
-// Toggle list view
-function toggleListView(){
-  listViewOpen=!listViewOpen;
-  imageListOverlay.classList.toggle('open',listViewOpen);
-  document.getElementById('viewToggle').classList.toggle('active',listViewOpen);
-  thumbnailStrip.style.display=listViewOpen?'none':'flex';
-  if(listViewOpen)updateListView()
-}
-
-// Keyboard navigation
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
-  if(e.key==='ArrowLeft'){e.preventDefault();navPrev()}
-  if(e.key==='ArrowRight'){e.preventDefault();navNext()}
-  if(e.key==='Home'){e.preventDefault();if(images.length)switchToImage(0)}
-  if(e.key==='End'){e.preventDefault();if(images.length)switchToImage(images.length-1)}
-  if(e.key==='0'||e.key==='1'){document.getElementById('imageSearch').focus()}
+  if(e.key==='ArrowLeft'){e.preventDefault();navPrev()}if(e.key==='ArrowRight'){e.preventDefault();navNext()}
+  if(e.key==='Home'){e.preventDefault();if(imgs.length)switchTo(0)}if(e.key==='End'){e.preventDefault();if(imgs.length)switchTo(imgs.length-1)}
 });
 
-// ==================== Auto filename watermark ====================
-function onAutoFilenameToggle(){
-  autoFilename=document.getElementById('autoFilename').checked;
-  if(autoFilename){
-    images.forEach(item=>{item.config.text=item.name.replace(/\.[^.]+$/,'')});
-    if(images.length>0){loadConfigToPanel(images[currentIndex].config);render()}
-  }
-  updateAfHint()
-}
-function updateAfHint(){
-  if(!autoFilename||images.length===0){document.getElementById('afHint').textContent='';return}
-  const fn=images[currentIndex].name.replace(/\.[^.]+$/,'');
-  document.getElementById('afHint').textContent=fn
-}
+// ==================== Auto filename ====================
+function onAutoFn(){autoFn=$('autoFilename').checked;if(autoFn){imgs.forEach(it=>{it.cfg.text=it.name.replace(/\.[^.]+$/,'')});if(imgs.length){loadCfg(imgs[idx].cfg);render()}}updAf()}
+function updAf(){if(!autoFn||!imgs.length){$('afHint').textContent='';return}$('afHint').textContent=imgs[idx].name.replace(/\.[^.]+$/,'')}
 
 // ==================== Config sync ====================
-function savePanelToConfig(cfg){
-  cfg.mode=document.querySelector('.mode-tab.active')?.dataset?.mode||'single';
-  cfg.text=document.getElementById('wmText').value;
-  cfg.font=document.getElementById('wmFont').value;
-  cfg.fontSize=parseInt(document.getElementById('wmFontSize').value);
-  cfg.color=document.getElementById('wmColor').value;
-  cfg.opacity=parseFloat(document.getElementById('wmOpacity').value);
-  cfg.angle=parseInt(document.getElementById('wmAngle').value);
-  cfg.tileCols=parseInt(document.getElementById('tileCols').value);
-  cfg.tileRows=parseInt(document.getElementById('tileRows').value);
-  cfg.tileAngle=parseInt(document.getElementById('tileAngle').value);
-  cfg.tileOffsetX=parseInt(document.getElementById('tileOffsetX').value)/100;
-  cfg.tileOffsetY=parseInt(document.getElementById('tileOffsetY').value)/100;
-  cfg.wmPos={x:parseInt(document.getElementById('wmPosX').value)/100,y:parseInt(document.getElementById('wmPosY').value)/100}
+function saveCfgTo(cfg){
+  cfg.mode=document.querySelector('.mtab.on')?.dataset?.mode||'single';
+  cfg.text=$('wmText').value;cfg.font=$('wmFont').value;cfg.fontSize=+$('wmFontSize').value;
+  cfg.color=$('wmColor').value;cfg.opacity=+$('wmOpacity').value;cfg.angle=+$('wmAngle').value;
+  cfg.tileCols=+$('tileCols').value;cfg.tileRows=+$('tileRows').value;cfg.tileAngle=+$('tileAngle').value;
+  cfg.tileOffsetX=+$('tileOffsetX').value/100;cfg.tileOffsetY=+$('tileOffsetY').value/100;
+  cfg.wmPos={x:+$('wmPosX').value/100,y:+$('wmPosY').value/100}
 }
-
-function loadConfigToPanel(cfg){
-  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===cfg.mode));
-  document.getElementById('singleControls').style.display=cfg.mode==='single'?'':'none';
-  document.getElementById('tileControls').style.display=cfg.mode==='tile'?'':'none';
-  document.getElementById('wmText').value=cfg.text;
-  document.getElementById('wmFont').value=cfg.font;
-  document.getElementById('wmFontSize').value=cfg.fontSize;
-  document.getElementById('fontSizeLabel').textContent=cfg.fontSize+'px';
-  document.getElementById('wmColor').value=cfg.color;
-  document.getElementById('wmOpacity').value=cfg.opacity;
-  document.getElementById('opacityLabel').textContent=cfg.opacity.toFixed(2);
-  document.getElementById('wmAngle').value=cfg.angle;
-  document.getElementById('angleLabel').textContent=cfg.angle+'°';
-  document.getElementById('wmPosX').value=Math.round(cfg.wmPos.x*100);
-  document.getElementById('wmPosY').value=Math.round(cfg.wmPos.y*100);
-  document.getElementById('posXLabel').textContent=Math.round(cfg.wmPos.x*100)+'%';
-  document.getElementById('posYLabel').textContent=Math.round(cfg.wmPos.y*100)+'%';
-  document.getElementById('tileCols').value=cfg.tileCols;
-  document.getElementById('colsLabel').textContent=cfg.tileCols;
-  document.getElementById('tileRows').value=cfg.tileRows;
-  document.getElementById('rowsLabel').textContent=cfg.tileRows;
-  document.getElementById('tileAngle').value=cfg.tileAngle;
-  document.getElementById('tileAngleLabel').textContent=cfg.tileAngle+'°';
-  document.getElementById('tileOffsetX').value=Math.round(cfg.tileOffsetX*100);
-  document.getElementById('tileOffsetY').value=Math.round(cfg.tileOffsetY*100);
-  document.getElementById('offsetXLabel').textContent=Math.round(cfg.tileOffsetX*100)+'%';
-  document.getElementById('offsetYLabel').textContent=Math.round(cfg.tileOffsetY*100)+'%';
-  window._mode=cfg.mode
+function loadCfg(cfg){
+  document.querySelectorAll('.mtab').forEach(t=>t.classList.toggle('on',t.dataset.mode===cfg.mode));
+  $('singleSec').style.display=cfg.mode==='single'?'':'none';$('tileSec').style.display=cfg.mode==='tile'?'':'none';
+  $('wmText').value=cfg.text;$('wmFont').value=cfg.font;$('wmFontSize').value=cfg.fontSize;$('fsLabel').textContent=cfg.fontSize+'px';
+  $('wmColor').value=cfg.color;$('wmOpacity').value=cfg.opacity;$('opLabel').textContent=cfg.opacity.toFixed(2);
+  $('wmAngle').value=cfg.angle;$('aLabel').textContent=cfg.angle+'°';
+  $('wmPosX').value=Math.round(cfg.wmPos.x*100);$('wmPosY').value=Math.round(cfg.wmPos.y*100);
+  $('pxLabel').textContent=Math.round(cfg.wmPos.x*100)+'%';$('pyLabel').textContent=Math.round(cfg.wmPos.y*100)+'%';
+  $('tileCols').value=cfg.tileCols;$('cLabel').textContent=cfg.tileCols;$('tileRows').value=cfg.tileRows;$('rLabel').textContent=cfg.tileRows;
+  $('tileAngle').value=cfg.tileAngle;$('taLabel').textContent=cfg.tileAngle+'°';
+  $('tileOffsetX').value=Math.round(cfg.tileOffsetX*100);$('tileOffsetY').value=Math.round(cfg.tileOffsetY*100);
+  $('oxLabel').textContent=Math.round(cfg.tileOffsetX*100)+'%';$('oyLabel').textContent=Math.round(cfg.tileOffsetY*100)+'%';
 }
-
-function saveConfigAndRender(){if(images.length===0)return;savePanelToConfig(images[currentIndex].config);render()}
+function saveCfg(){if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);render()}
 
 function applyToAll(type){
-  if(images.length===0)return;savePanelToConfig(images[currentIndex].config);const src=images[currentIndex].config;
-  images.forEach((item,i)=>{
-    if(i===currentIndex)return;
-    if(type==='text'){item.config.text=src.text;item.config.font=src.font;item.config.fontSize=src.fontSize;item.config.color=src.color;item.config.opacity=src.opacity}
-    else if(type==='single'){item.config.angle=src.angle}
-    else if(type==='tile'){item.config.tileCols=src.tileCols;item.config.tileRows=src.tileRows;item.config.tileAngle=src.tileAngle;item.config.tileOffsetX=src.tileOffsetX;item.config.tileOffsetY=src.tileOffsetY}
-    else if(type==='mode'){item.config.mode=src.mode;loadConfigToPanel(images[currentIndex].config)}
-  });
+  if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);const s=imgs[idx].cfg;
+  imgs.forEach((it,i)=>{if(i===idx)return;if(type==='text'){it.cfg.text=s.text;it.cfg.font=s.font;it.cfg.fontSize=s.fontSize;it.cfg.color=s.color;it.cfg.opacity=s.opacity}
+    else if(type==='single')it.cfg.angle=s.angle;else if(type==='tile'){it.cfg.tileCols=s.tileCols;it.cfg.tileRows=s.tileRows;it.cfg.tileAngle=s.tileAngle;it.cfg.tileOffsetX=s.tileOffsetX;it.cfg.tileOffsetY=s.tileOffsetY}
+    else if(type==='mode'){it.cfg.mode=s.mode;loadCfg(imgs[idx].cfg)}})
   showToast('已应用到全部图片');render()
 }
-
-// One-click: apply ALL settings from current image to all images
 function applyAllSettings(){
-  if(images.length===0)return;
-  savePanelToConfig(images[currentIndex].config);
-  const src=images[currentIndex].config;
-  images.forEach((item,i)=>{
-    if(i===currentIndex)return;
-    // Deep copy the entire config
-    item.config={...src,wmPos:{...src.wmPos}}
-  });
-  showToast(`已将全部设置应用到 ${images.length} 张图片`);render()
+  if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);const s=imgs[idx].cfg;
+  imgs.forEach((it,i)=>{if(i===idx)return;it.cfg={...s,wmPos:{...s.wmPos}}});
+  showToast(`全部设置已应用到 ${imgs.length} 张图片`);render()
 }
 
 // ==================== Fit canvas ====================
-function fitCanvas(){
-  const img=images[currentIndex]?.img;if(!img)return;
-  const maxW=canvasArea.clientWidth-32,maxH=canvasArea.clientHeight-32;
-  let w=img.naturalWidth,h=img.naturalHeight;
-  const ratio=Math.min(maxW/w,maxH/h,1);
-  w=Math.floor(w*ratio);h=Math.floor(h*ratio);
-  mainCanvas.width=w;mainCanvas.height=h
-}
-window.addEventListener('resize',()=>{if(images.length>0){fitCanvas();render()}});
+function fitCanvas(){const i=imgs[idx]?.img;if(!i)return;const mw=canvasArea.clientWidth-32,mh=canvasArea.clientHeight-32;const r=Math.min(mw/i.naturalWidth,mh/i.naturalHeight,1);mc.width=Math.floor(i.naturalWidth*r);mc.height=Math.floor(i.naturalHeight*r)}
+window.addEventListener('resize',()=>{if(imgs.length){fitCanvas();render();zoomFit()}});
 
-// ==================== Mode switching ====================
-function switchMode(newMode){
-  if(images.length>0)images[currentIndex].config.mode=newMode;
-  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===newMode));
-  document.getElementById('singleControls').style.display=newMode==='single'?'':'none';
-  document.getElementById('tileControls').style.display=newMode==='tile'?'':'none';
-  window._mode=newMode;render()
-}
+// ==================== Switch mode ====================
+function switchMode(m){if(imgs.length)imgs[idx].cfg.mode=m;document.querySelectorAll('.mtab').forEach(t=>t.classList.toggle('on',t.dataset.mode===m));$('singleSec').style.display=m==='single'?'':'none';$('tileSec').style.display=m==='tile'?'':'none';render()}
 
-// ==================== Slider handlers ====================
-document.getElementById('syncPos').addEventListener('change',function(){syncPosition=this.checked});
-function onFontSizeChange(){document.getElementById('fontSizeLabel').textContent=this.value+'px';saveConfigAndRender()}
-function onOpacityChange(){document.getElementById('opacityLabel').textContent=parseFloat(this.value).toFixed(2);saveConfigAndRender()}
-function onAngleChange(){document.getElementById('angleLabel').textContent=this.value+'°';saveConfigAndRender()}
-function onTileChange(){document.getElementById('colsLabel').textContent=document.getElementById('tileCols').value;document.getElementById('rowsLabel').textContent=document.getElementById('tileRows').value;saveConfigAndRender()}
-function onTileAngleChange(){document.getElementById('tileAngleLabel').textContent=this.value+'°';saveConfigAndRender()}
-function onTileOffsetChange(){document.getElementById('offsetXLabel').textContent=document.getElementById('tileOffsetX').value+'%';document.getElementById('offsetYLabel').textContent=document.getElementById('tileOffsetY').value+'%';saveConfigAndRender()}
-function onPosXChange(){document.getElementById('posXLabel').textContent=this.value+'%';saveConfigAndRender()}
-function onPosYChange(){document.getElementById('posYLabel').textContent=this.value+'%';saveConfigAndRender()}
-['wmFontSize','wmOpacity','wmAngle','tileCols','tileRows','tileAngle','tileOffsetX','tileOffsetY','wmPosX','wmPosY'].forEach(id=>{
-  const el=document.getElementById(id);if(!el)return;
-  const map={wmFontSize:onFontSizeChange,wmOpacity:onOpacityChange,wmAngle:onAngleChange,tileCols:onTileChange,tileRows:onTileChange,tileAngle:onTileAngleChange,tileOffsetX:onTileOffsetChange,tileOffsetY:onTileOffsetChange,wmPosX:onPosXChange,wmPosY:onPosYChange};
-  el.addEventListener('input',map[id])
-});
+// ==================== Sliders ====================
+$('syncPos').addEventListener('change',function(){syncPos=this.checked});
+function onFs(){$('fsLabel').textContent=$('wmFontSize').value+'px';saveCfg()}
+function onOp(){$('opLabel').textContent=parseFloat($('wmOpacity').value).toFixed(2);saveCfg()}
+function onAng(){$('aLabel').textContent=$('wmAngle').value+'°';saveCfg()}
+function onTc(){$('cLabel').textContent=$('tileCols').value;$('rLabel').textContent=$('tileRows').value;saveCfg()}
+function onTa(){$('taLabel').textContent=$('tileAngle').value+'°';saveCfg()}
+function onTo(){$('oxLabel').textContent=$('tileOffsetX').value+'%';$('oyLabel').textContent=$('tileOffsetY').value+'%';saveCfg()}
+function onPx(){$('pxLabel').textContent=$('wmPosX').value+'%';saveCfg()}
+function onPy(){$('pyLabel').textContent=$('wmPosY').value+'%';saveCfg()}
+['wmFontSize','wmOpacity','wmAngle','tileCols','tileRows','tileAngle','tileOffsetX','tileOffsetY','wmPosX','wmPosY'].forEach(id=>{const e=$(id);if(!e)return;({wmFontSize:onFs,wmOpacity:onOp,wmAngle:onAng,tileCols:onTc,tileRows:onTc,tileAngle:onTa,tileOffsetX:onTo,tileOffsetY:onTo,wmPosX:onPx,wmPosY:onPy})[id]&&e.addEventListener('input',({wmFontSize:onFs,wmOpacity:onOp,wmAngle:onAng,tileCols:onTc,tileRows:onTc,tileAngle:onTa,tileOffsetX:onTo,tileOffsetY:onTo,wmPosX:onPx,wmPosY:onPy})[id])});
 
-// ==================== Select all ====================
-function toggleSelectAll(){const c=document.getElementById('selectAll').checked;images.forEach(i=>i.selected=c);updateThumbnails();updateCounts()}
+function toggleSelectAll(){const c=$('selectAll').checked;imgs.forEach(i=>i.sel=c);updThumbs();updCnts()}
 
-// ==================== Rendering ====================
+// ==================== Render ====================
 function render(){
-  const img=images[currentIndex]?.img;if(!img)return;
-  const cfg=images[currentIndex].config,cw=mainCanvas.width,ch=mainCanvas.height;
-  ctx.clearRect(0,0,cw,ch);ctx.drawImage(img,0,0,cw,ch);
-  ctx.font=`${cfg.fontSize}px "${cfg.font}"`;ctx.fillStyle=cfg.color;
-  ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=cfg.opacity;
-  if(cfg.mode==='single')renderSingle(cfg,cw,ch);else renderTile(cfg,cw,ch);
-  ctx.globalAlpha=1
+  const i=imgs[idx]?.img;if(!i)return;const c=imgs[idx].cfg,cw=mc.width,ch=mc.height;
+  ctx.clearRect(0,0,cw,ch);ctx.drawImage(i,0,0,cw,ch);
+  ctx.font=`${c.fontSize}px "${c.font}"`;ctx.fillStyle=c.color;ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=c.opacity;
+  if(c.mode==='single')rSingle(c,cw,ch);else rTile(c,cw,ch);ctx.globalAlpha=1
 }
-function renderSingle(cfg,cw,ch){
-  const x=cfg.wmPos.x*cw,y=cfg.wmPos.y*ch,rad=(cfg.angle*Math.PI)/180;
-  ctx.save();ctx.translate(x,y);ctx.rotate(rad);ctx.fillText(cfg.text,0,0);
-  if(!dragging){ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.setLineDash([3,3]);const m=ctx.measureText(cfg.text);const bw=Math.max(m.width*.55,cfg.fontSize*.3),bh=cfg.fontSize*.65;ctx.strokeRect(-bw,-bh,bw*2,bh*2);ctx.setLineDash([])}
-  ctx.restore()
-}
-function renderTile(cfg,cw,ch){
-  const cols=cfg.tileCols,rows=cfg.tileRows,rad=(cfg.tileAngle*Math.PI)/180,cellW=cw/cols,cellH=ch/rows,ox=cfg.tileOffsetX*cellW,oy=cfg.tileOffsetY*cellH,ec=2,er=2;
-  for(let row=-er;row<rows+er;row++)for(let col=-ec;col<cols+ec;col++){const cx=col*cellW+cellW/2+ox,cy=row*cellH+cellH/2+oy;ctx.save();ctx.translate(cx,cy);ctx.rotate(rad);ctx.fillText(cfg.text,0,0);ctx.restore()}
-}
+function rSingle(c,cw,ch){const x=c.wmPos.x*cw,y=c.wmPos.y*ch,r=(c.angle*Math.PI)/180;ctx.save();ctx.translate(x,y);ctx.rotate(r);ctx.fillText(c.text,0,0);
+  if(!dragging){ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.setLineDash([3,3]);const m=ctx.measureText(c.text);ctx.strokeRect(-Math.max(m.width*.55,c.fontSize*.3),-c.fontSize*.65,Math.max(m.width*1.1,c.fontSize*.6),c.fontSize*1.3);ctx.setLineDash([])}ctx.restore()}
+function rTile(c,cw,ch){const cols=c.tileCols,rows=c.tileRows,r=(c.tileAngle*Math.PI)/180,cellW=cw/cols,cellH=ch/rows,ox=c.tileOffsetX*cellW,oy=c.tileOffsetY*cellH;for(let row=-2;row<rows+2;row++)for(let col=-2;col<cols+2;col++){ctx.save();ctx.translate(col*cellW+cellW/2+ox,row*cellH+cellH/2+oy);ctx.rotate(r);ctx.fillText(c.text,0,0);ctx.restore()}}
 
-// ==================== Canvas interaction (single mode) ====================
-function getCanvasPos(e){const r=mainCanvas.getBoundingClientRect();return{x:(e.clientX-r.left)*mainCanvas.width/r.width,y:(e.clientY-r.top)*mainCanvas.height/r.height}}
-function isNearWatermark(cx,cy){
-  if(images.length===0)return false;const cfg=images[currentIndex].config;
-  const wx=cfg.wmPos.x*mainCanvas.width,wy=cfg.wmPos.y*mainCanvas.height;
-  ctx.save();ctx.font=`${cfg.fontSize}px "${cfg.font}"`;const m=ctx.measureText(cfg.text);ctx.restore();
-  return Math.abs(cx-wx)<m.width*.6&&Math.abs(cy-wy)<cfg.fontSize*.7
-}
-function updateWmPosFromCanvas(cx,cy){
-  const pos={x:Math.max(0,Math.min(1,cx/mainCanvas.width)),y:Math.max(0,Math.min(1,cy/mainCanvas.height))};
-  if(syncPosition)images.forEach(img=>img.config.wmPos={...pos});else images[currentIndex].config.wmPos=pos;
-  document.getElementById('wmPosX').value=Math.round(pos.x*100);document.getElementById('wmPosY').value=Math.round(pos.y*100);
-  document.getElementById('posXLabel').textContent=Math.round(pos.x*100)+'%';document.getElementById('posYLabel').textContent=Math.round(pos.y*100)+'%'
-}
-mainCanvas.addEventListener('mousedown',e=>{
-  if(images.length===0||images[currentIndex].config.mode!=='single')return;const p=getCanvasPos(e);
-  if(isNearWatermark(p.x,p.y)){dragging=true;mainCanvas.style.cursor='grabbing';e.preventDefault()}
-  else{updateWmPosFromCanvas(p.x,p.y);render()}
-});
-mainCanvas.addEventListener('mousemove',e=>{
-  if(images.length===0||images[currentIndex].config.mode!=='single')return;const p=getCanvasPos(e);
-  if(dragging){updateWmPosFromCanvas(p.x,p.y);render()}else mainCanvas.style.cursor=isNearWatermark(p.x,p.y)?'grab':'crosshair'
-});
-mainCanvas.addEventListener('mouseup',()=>{if(dragging){dragging=false;mainCanvas.style.cursor='crosshair';render()}});
-mainCanvas.addEventListener('mouseleave',()=>{if(dragging){dragging=false;mainCanvas.style.cursor='crosshair';render()}});
-mainCanvas.addEventListener('touchstart',e=>{
-  if(e.touches.length!==1||images.length===0||images[currentIndex].config.mode!=='single')return;
-  const p=getCanvasPos(e.touches[0]);if(isNearWatermark(p.x,p.y)){dragging=true;e.preventDefault()}else{updateWmPosFromCanvas(p.x,p.y);render()}
-});
-mainCanvas.addEventListener('touchmove',e=>{if(!dragging||e.touches.length!==1)return;e.preventDefault();const p=getCanvasPos(e.touches[0]);updateWmPosFromCanvas(p.x,p.y);render()},{passive:false});
-mainCanvas.addEventListener('touchend',()=>{if(dragging){dragging=false;render()}});
+// ==================== Canvas drag ====================
+function cvPos(e){const r=mc.getBoundingClientRect();return{x:(e.clientX-r.left)*mc.width/r.width,y:(e.clientY-r.top)*mc.height/r.height}}
+function nearWm(cx,cy){if(!imgs.length)return false;const c=imgs[idx].cfg;ctx.save();ctx.font=`${c.fontSize}px "${c.font}"`;const m=ctx.measureText(c.text);ctx.restore();return Math.abs(cx-c.wmPos.x*mc.width)<m.width*.6&&Math.abs(cy-c.wmPos.y*mc.height)<c.fontSize*.7}
+function setWmPos(cx,cy){const p={x:Math.max(0,Math.min(1,cx/mc.width)),y:Math.max(0,Math.min(1,cy/mc.height))};if(syncPos)imgs.forEach(it=>it.cfg.wmPos={...p});else imgs[idx].cfg.wmPos=p;$('wmPosX').value=Math.round(p.x*100);$('wmPosY').value=Math.round(p.y*100);$('pxLabel').textContent=Math.round(p.x*100)+'%';$('pyLabel').textContent=Math.round(p.y*100)+'%'}
+
+mc.addEventListener('mousedown',e=>{if(!imgs.length||imgs[idx].cfg.mode!=='single')return;const p=cvPos(e);if(nearWm(p.x,p.y)){dragging=true;mc.style.cursor='grabbing';e.preventDefault()}else{setWmPos(p.x,p.y);render()}});
+mc.addEventListener('mousemove',e=>{if(!imgs.length||imgs[idx].cfg.mode!=='single')return;const p=cvPos(e);if(dragging){setWmPos(p.x,p.y);render()}else mc.style.cursor=nearWm(p.x,p.y)?'grab':'crosshair'});
+mc.addEventListener('mouseup',()=>{if(dragging){dragging=false;mc.style.cursor='crosshair';render()}});
+mc.addEventListener('mouseleave',()=>{if(dragging){dragging=false;mc.style.cursor='crosshair';render()}});
+mc.addEventListener('touchstart',e=>{if(e.touches.length!==1||!imgs.length||imgs[idx].cfg.mode!=='single')return;const p=cvPos(e.touches[0]);if(nearWm(p.x,p.y)){dragging=true;e.preventDefault()}else{setWmPos(p.x,p.y);render()}});
+mc.addEventListener('touchmove',e=>{if(!dragging||e.touches.length!==1)return;e.preventDefault();setWmPos(cvPos(e.touches[0]).x,cvPos(e.touches[0]).y);render()},{passive:false});
+mc.addEventListener('touchend',()=>{if(dragging){dragging=false;render()}});
 
 // ==================== Download ====================
-function applyWatermarkToCanvas(dCtx,dw,dh,cfg,sf){
-  const fs=Math.round(cfg.fontSize*sf);dCtx.font=`${fs}px "${cfg.font}"`;dCtx.fillStyle=cfg.color;dCtx.textAlign='center';dCtx.textBaseline='middle';dCtx.globalAlpha=cfg.opacity;
-  if(cfg.mode==='single'){const x=cfg.wmPos.x*dw,y=cfg.wmPos.y*dh,r=(cfg.angle*Math.PI)/180;dCtx.save();dCtx.translate(x,y);dCtx.rotate(r);dCtx.fillText(cfg.text,0,0);dCtx.restore()}
-  else{const cols=cfg.tileCols,rows=cfg.tileRows,r=(cfg.tileAngle*Math.PI)/180,cw=dw/cols,ch=dh/rows,ox=cfg.tileOffsetX*cw,oy=cfg.tileOffsetY*ch;for(let row=-2;row<rows+2;row++)for(let col=-2;col<cols+2;col++){const cx=col*cw+cw/2+ox,cy=row*ch+ch/2+oy;dCtx.save();dCtx.translate(cx,cy);dCtx.rotate(r);dCtx.fillText(cfg.text,0,0);dCtx.restore()}}
-}
-function downloadCurrent(){if(images.length===0)return;downloadSingleImage(images[currentIndex]);closeMobileSettings()}
-function downloadSelected(){const sel=images.filter(i=>i.selected);if(sel.length===0){showToast('没有选中的图片');return}if(sel.length===1){downloadSingleImage(sel[0]);return}downloadAsZip(sel);closeMobileSettings()}
-function downloadAllZip(){if(images.length===0)return;downloadAsZip(images);closeMobileSettings()}
-function downloadSingleImage(item){
-  const cfg=item.config,dc=document.createElement('canvas');dc.width=item.img.naturalWidth;dc.height=item.img.naturalHeight;
-  const dCtx=dc.getContext('2d');dCtx.drawImage(item.img,0,0);
-  applyWatermarkToCanvas(dCtx,dc.width,dc.height,cfg,Math.min(dc.width/Math.max(mainCanvas.width,1),1));
-  dc.toBlob(b=>{const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=item.name.replace(/\.[^.]+$/,'')+'_watermarked.png';a.click();URL.revokeObjectURL(u);showToast('下载完成')},'image/png')
-}
-async function downloadAsZip(itemList){
-  const ov=document.getElementById('processingOverlay'),msg=document.getElementById('processingMsg');ov.style.display='flex';msg.textContent=`0 / ${itemList.length}`;
-  const zip=new JSZip();
-  for(let i=0;i<itemList.length;i++){const item=itemList[i];msg.textContent=`${i+1} / ${itemList.length}`;
-    const c=document.createElement('canvas');c.width=item.img.naturalWidth;c.height=item.img.naturalHeight;const dCtx=c.getContext('2d');dCtx.drawImage(item.img,0,0);
-    applyWatermarkToCanvas(dCtx,c.width,c.height,item.config,Math.min(c.width/Math.max(mainCanvas.width,1),1));
-    const blob=await new Promise(r=>c.toBlob(r,'image/png'));zip.file(item.name.replace(/\.[^.]+$/,'')+'_watermarked.png',blob)
-  }
-  msg.textContent='打包中...';const zb=await zip.generateAsync({type:'blob'}),u=URL.createObjectURL(zb),a=document.createElement('a');a.href=u;a.download='watermarked_images.zip';a.click();URL.revokeObjectURL(u);ov.style.display='none';showToast(`完成 — 共 ${itemList.length} 张`)
-}
+function applyWm(dCtx,dw,dh,c,sf){const fs=Math.round(c.fontSize*sf);dCtx.font=`${fs}px "${c.font}"`;dCtx.fillStyle=c.color;dCtx.textAlign='center';dCtx.textBaseline='middle';dCtx.globalAlpha=c.opacity;if(c.mode==='single'){dCtx.save();dCtx.translate(c.wmPos.x*dw,c.wmPos.y*dh);dCtx.rotate(c.angle*Math.PI/180);dCtx.fillText(c.text,0,0);dCtx.restore()}else{const cw=dw/c.tileCols,ch=dh/c.tileRows,ox=c.tileOffsetX*cw,oy=c.tileOffsetY*ch,r=c.tileAngle*Math.PI/180;for(let row=-2;row<c.tileRows+2;row++)for(let col=-2;col<c.tileCols+2;col++){dCtx.save();dCtx.translate(col*cw+cw/2+ox,row*ch+ch/2+oy);dCtx.rotate(r);dCtx.fillText(c.text,0,0);dCtx.restore()}}}
+function dlOne(it){const c=it.cfg,dc=document.createElement('canvas');dc.width=it.img.naturalWidth;dc.height=it.img.naturalHeight;const dCtx=dc.getContext('2d');dCtx.drawImage(it.img,0,0);applyWm(dCtx,dc.width,dc.height,c,Math.min(dc.width/Math.max(mc.width,1),1));dc.toBlob(b=>{const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=it.name.replace(/\.[^.]+$/,'')+'_watermarked.png';a.click();URL.revokeObjectURL(u);showToast('下载完成')},'image/png')}
+function downloadCurrent(){if(!imgs.length)return;dlOne(imgs[idx]);closeSettings()}
+function downloadSelected(){const sel=imgs.filter(i=>i.sel);if(!sel.length){showToast('没有选中的图片');return}if(sel.length===1){dlOne(sel[0]);return}dlZip(sel);closeSettings()}
+function downloadAllZip(){if(!imgs.length)return;dlZip(imgs);closeSettings()}
+async function dlZip(list){const ov=$('procOverlay'),msg=$('procMsg');ov.style.display='flex';msg.textContent=`0 / ${list.length}`;const zip=new JSZip();for(let i=0;i<list.length;i++){const it=list[i];msg.textContent=`${i+1} / ${list.length}`;const c=document.createElement('canvas');c.width=it.img.naturalWidth;c.height=it.img.naturalHeight;const dCtx=c.getContext('2d');dCtx.drawImage(it.img,0,0);applyWm(dCtx,c.width,c.height,it.cfg,Math.min(c.width/Math.max(mc.width,1),1));const blob=await new Promise(r=>c.toBlob(r,'image/png'));zip.file(it.name.replace(/\.[^.]+$/,'')+'_watermarked.png',blob)}msg.textContent='打包中...';const zb=await zip.generateAsync({type:'blob'}),u=URL.createObjectURL(zb),a=document.createElement('a');a.href=u;a.download='watermarked_images.zip';a.click();URL.revokeObjectURL(u);ov.style.display='none';showToast(`完成 — 共 ${list.length} 张`)}
 
 // ==================== Mobile settings ====================
-function toggleMobileSettings(){const o=controlsPanel.classList.toggle('open');controlsBackdrop.classList.toggle('open',o);document.body.style.overflow=o?'hidden':''}
-function closeMobileSettings(){controlsPanel.classList.remove('open');controlsBackdrop.classList.remove('open');document.body.style.overflow=''}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileSettings()});
-
-// Swipe-down to dismiss settings on mobile
-let touchStartY=0,touchStartTime=0;
-controlsPanel.addEventListener('touchstart',e=>{
-  if(e.target.closest('.controls-scroll')||e.target.closest('.sheet-header')){
-    touchStartY=e.touches[0].clientY;touchStartTime=Date.now()
-  }
-},{passive:true});
-controlsPanel.addEventListener('touchmove',e=>{
-  if(!controlsPanel.classList.contains('open'))return;
-  const dy=e.touches[0].clientY-touchStartY;
-  if(dy>20&&controlsPanel.scrollTop<=5){
-    e.preventDefault();
-    controlsPanel.style.transition='none';
-    controlsPanel.style.transform=`translateY(${dy}px)`
-  }
-},{passive:false});
-controlsPanel.addEventListener('touchend',e=>{
-  if(!controlsPanel.classList.contains('open'))return;
-  controlsPanel.style.transition='';
-  const dy=(e.changedTouches[0]?.clientY||0)-touchStartY;
-  const dt=Date.now()-touchStartTime;
-  if(dy>80||(dy>30&&dt<300)){closeMobileSettings();return}
-  controlsPanel.style.transform=''
-});
+function toggleSettings(){const o=sidebar.classList.toggle('open');ctrlBackdrop.classList.toggle('open',o);document.body.style.overflow=o?'hidden':''}
+function closeSettings(){sidebar.classList.remove('open');ctrlBackdrop.classList.remove('open');document.body.style.overflow=''}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings()});
+let tsY=0,tsT=0;
+sidebar.addEventListener('touchstart',e=>{if(e.target.closest('.side-scroll')||e.target.closest('.sheet-hd')){tsY=e.touches[0].clientY;tsT=Date.now()}},{passive:true});
+sidebar.addEventListener('touchmove',e=>{if(!sidebar.classList.contains('open'))return;const dy=e.touches[0].clientY-tsY;if(dy>15){e.preventDefault();sidebar.style.transition='none';sidebar.style.transform=`translateY(${dy}px)`}},{passive:false});
+sidebar.addEventListener('touchend',e=>{if(!sidebar.classList.contains('open'))return;sidebar.style.transition='';const dy=(e.changedTouches[0]?.clientY||0)-tsY;if(dy>70||(dy>25&&Date.now()-tsT<300)){closeSettings();return}sidebar.style.transform=''});
 
 // ==================== Toast ====================
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._timeout);t._timeout=setTimeout(()=>t.classList.remove('show'),2000)}
+function showToast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2000)}
 
 // ==================== Init ====================
-window._mode='single';loadConfigToPanel(defaultConfig());
+loadCfg(dcfg());
 </script>
 </body>
 </html>
