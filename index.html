@@ -685,7 +685,7 @@ function onChange(){
   updThumbs();updCnts();updNav();updList()
 }
 
-function filtered(){if(!filter)return imgs;const f=filter.toLowerCase();return imgs.map((it,i)=>({it,i})).filter(x=>x.it.name.toLowerCase().includes(f))}
+function filtered(){const f=filter?filter.toLowerCase():'';return imgs.map((it,i)=>({it,i})).filter(x=>!f||x.it.name.toLowerCase().includes(f))}
 
 function updThumbs(){
   const ex=thumbStrip.querySelectorAll('.thumb');ex.forEach(t=>t.remove());
