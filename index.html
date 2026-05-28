@@ -891,17 +891,20 @@ function loadCfg(cfg){
 function saveCfg(){if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);render()}
 function pickColor(hex){
   $('wmColorHex').value=hex.replace('#','');$('cpPreview').style.background=hex;
-  document.querySelectorAll('.cp-cell').forEach(s=>s.classList.toggle('active',rgbToHex(s.style.background)===hex));
+  document.querySelectorAll('.cp-cell').forEach(s=>s.classList.toggle('active',parseColorToHex(s.style.background)===hex));
   document.querySelectorAll('.cq-swatch').forEach(s=>s.classList.toggle('active',s.dataset.color===hex));
   saveCfg()
 }
-function rgbToHex(cssColor){
-  if(cssColor.startsWith('#'))return cssColor;
-  // Use temp element to resolve any CSS color to rgb, then to hex
-  const tmp=document.createElement('span');tmp.style.color=cssColor;document.body.appendChild(tmp);
-  const rgb=getComputedStyle(tmp).color;tmp.remove();
-  const m=rgb.match(/\d+/g);if(!m)return cssColor;
-  return'#'+m.slice(0,3).map(v=>(+v).toString(16).padStart(2,'0')).join('')
+function hslToHex(h,s,l){s/=100;l/=100;const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(Math.min(k-3,9-k,1),-1))).toString(16).padStart(2,'0')};return'#'+f(0)+f(8)+f(4)}
+function parseColorToHex(cssColor){
+  if(!cssColor||cssColor.startsWith('#'))return cssColor||'#ffffff';
+  // Parse hsl(h,s%,l%) format
+  const m=cssColor.match(/hsl\((\d+),?\s*(\d+)%,?\s*(\d+)%\)/);
+  if(m)return hslToHex(+m[1],+m[2],+m[3]);
+  // Parse rgb(r,g,b) format
+  const r=cssColor.match(/\d+/g);
+  if(r)return'#'+r.slice(0,3).map(v=>(+v).toString(16).padStart(2,'0')).join('');
+  return cssColor
 }
 function onHexInput(){
   let v=$('wmColorHex').value.replace(/[^0-9a-fA-F]/g,'').slice(0,6);
@@ -1123,13 +1126,14 @@ $('imgSearch').addEventListener('keydown',e=>{if(e.key==='Escape')clearSearch()}
 
 // ===== Generate color palette =====
 (function(){
-  const p=$('colorPalette'),hues=[0,30,60,120,180,210,240,270,300,330];
+  const p=$('colorPalette');if(!p)return;
+  const hues=[0,30,60,120,180,210,240,270,300,330];
   // 5 brightness levels + gray row + pure colors
   for(let b=100;b>=20;b-=20) // brightness rows
     for(const h of hues){
       const c=`hsl(${h},70%,${b}%)`;const d=document.createElement('span');
-      d.className='cp-cell';d.style.background=c;d.title=c;
-      d.addEventListener('click',()=>pickColor(rgbToHex(c)));
+      d.className='cp-cell';d.style.background=c;d.title=parseColorToHex(c);
+      d.addEventListener('click',()=>pickColor(d.title));
       p.appendChild(d)
     }
   // Bottom row: white → gray → black
