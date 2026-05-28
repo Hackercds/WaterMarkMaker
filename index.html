@@ -150,35 +150,32 @@ input[type="file"]{display:none}
 .bar-tools{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)}
 .search-wrap{
   position:relative;display:flex;align-items:center;
-  max-width:180px;transition:max-width .3s ease;
+  width:34px;transition:width .25s ease;
+  overflow:hidden;
 }
-.search-wrap.expanded{max-width:280px}
+.search-wrap.expanded{width:180px}
 .search-wrap input{
-  width:100%;padding:6px 22px 6px 8px;font-size:11px;font-family:var(--font);
+  width:100%;padding:6px 24px 6px 26px;font-size:11px;font-family:var(--font);
   background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
-  color:var(--text);outline:none;transition:border-color .15s,padding .3s;
-  opacity:0;transform:scaleX(.8);transform-origin:right;
-  transition:opacity .25s,transform .25s,border-color .15s;
+  color:var(--text);outline:none;transition:border-color .15s;
+  visibility:hidden;
 }
-.search-wrap.expanded input,
-.search-wrap.has-value input{opacity:1;transform:scaleX(1)}
-.search-wrap.expanded input{padding-left:26px}
+.search-wrap.expanded input{visibility:visible}
+.search-wrap.has-value input{visibility:visible}
 .search-wrap input:focus{border-color:var(--accent)}
 .search-wrap input::placeholder{color:var(--text-muted)}
 .search-icon{
   position:absolute;left:8px;top:50%;transform:translateY(-50%);
-  color:var(--text-muted);font-size:13px;cursor:pointer;z-index:1;
+  color:var(--text-muted);font-size:13px;cursor:pointer;z-index:2;
   width:18px;height:18px;display:flex;align-items:center;justify-content:center;
   transition:color .15s;
-  /* Magnifying glass via CSS */
   border:2px solid currentColor;border-radius:50%;
 }
 .search-icon::after{content:'';position:absolute;bottom:-1px;right:-2px;width:6px;height:2px;background:currentColor;border-radius:1px;transform:rotate(45deg);transform-origin:left center}
 .search-icon:hover{color:var(--accent)}
-.search-wrap.expanded .search-icon{left:7px}
 .search-clear{
-  position:absolute;right:5px;top:50%;transform:translateY(-50%);
-  color:var(--text-muted);font-size:14px;cursor:pointer;z-index:1;
+  position:absolute;right:4px;top:50%;transform:translateY(-50%);
+  color:var(--text-muted);font-size:14px;cursor:pointer;z-index:2;
   width:16px;height:16px;display:none;align-items:center;justify-content:center;
   border-radius:50%;transition:all .12s;
 }
@@ -330,6 +327,19 @@ input[type="file"]{display:none}
   box-shadow:0 1px 4px rgba(0,0,0,.15);transition:transform .1s;
 }
 .fg input[type="range"]::-webkit-slider-thumb:active{transform:scale(1.15)}
+/* Color preset swatches */
+.color-presets{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:2px}
+.cp-swatch{
+  width:22px;height:22px;border-radius:50%;
+  border:2px solid var(--border);cursor:pointer;transition:all .12s;
+}
+.cp-swatch:hover{border-color:var(--accent);transform:scale(1.15)}
+.cp-swatch.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+.cp-preview{
+  width:26px;height:26px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);flex-shrink:0;
+}
+
 .fg input[type="color"]{
   width:34px;height:28px;border:1px solid var(--border);border-radius:var(--radius-sm);
   cursor:pointer;background:transparent;padding:2px;
@@ -628,9 +638,21 @@ input[type="file"]{display:none}
           <div class="fr">
             <div class="fg">
               <label>颜色<span class="vl"><button onclick="autoColor()" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;font-family:var(--font)" title="分析图片找到最佳水印颜色">智能配色</button></span></label>
-              <div style="display:flex;gap:4px;align-items:center">
-                <input type="color" id="wmColor" value="#ffffff" onchange="onColorChange()" style="flex-shrink:0">
-                <input type="text" id="wmColorHex" value="#ffffff" maxlength="7" oninput="onHexInput()" style="flex:1;font-family:var(--font-mono);font-size:11px" placeholder="#000000">
+              <div class="color-presets" id="colorPresets">
+                <span class="cp-swatch" style="background:#ffffff" onclick="pickColor('#ffffff')" title="白色"></span>
+                <span class="cp-swatch" style="background:#000000" onclick="pickColor('#000000')" title="黑色"></span>
+                <span class="cp-swatch" style="background:#e94560" onclick="pickColor('#e94560')" title="红色"></span>
+                <span class="cp-swatch" style="background:#f0a040" onclick="pickColor('#f0a040')" title="橙色"></span>
+                <span class="cp-swatch" style="background:#f0e040" onclick="pickColor('#f0e040')" title="黄色"></span>
+                <span class="cp-swatch" style="background:#40c060" onclick="pickColor('#40c060')" title="绿色"></span>
+                <span class="cp-swatch" style="background:#4080e0" onclick="pickColor('#4080e0')" title="蓝色"></span>
+                <span class="cp-swatch" style="background:#8040c0" onclick="pickColor('#8040c0')" title="紫色"></span>
+                <span class="cp-swatch" style="background:#808080" onclick="pickColor('#808080')" title="灰色"></span>
+              </div>
+              <div style="display:flex;gap:4px;align-items:center;margin-top:4px">
+                <span style="font-size:10px;color:var(--text-muted);white-space:nowrap">#</span>
+                <input type="text" id="wmColorHex" value="ffffff" maxlength="6" oninput="onHexInput()" style="flex:1;font-family:var(--font-mono);font-size:11px;height:26px" placeholder="ffffff">
+                <span class="cp-preview" id="cpPreview" style="background:#ffffff"></span>
               </div>
             </div>
             <div class="fg"><label>不透明度<span class="vl" id="opLabel">0.30</span></label><input type="range" id="wmOpacity" min="0" max="1" step="0.01" value="0.3" oninput="onOp()"></div>
@@ -820,7 +842,7 @@ function updAf(){if(!autoFn||!imgs.length){$('afHint').textContent='';return}$('
 function saveCfgTo(cfg){
   cfg.mode=document.querySelector('.mtab.on')?.dataset?.mode||'single';
   cfg.text=$('wmText').value;cfg.font=$('wmFont').value;cfg.fontSize=+$('wmFontSize').value;
-  cfg.color=$('wmColor').value;cfg.opacity=+$('wmOpacity').value;cfg.angle=+$('wmAngle').value;
+  cfg.color='#'+$('wmColorHex').value.replace(/[^0-9a-fA-F]/g,'').slice(0,6).padEnd(6,'0');cfg.opacity=+$('wmOpacity').value;cfg.angle=+$('wmAngle').value;
   cfg.tileCols=+$('tileCols').value;cfg.tileRows=+$('tileRows').value;cfg.tileAngle=+$('tileAngle').value;
   cfg.tileOffsetX=+$('tileOffsetX').value/100;cfg.tileOffsetY=+$('tileOffsetY').value/100;
   cfg.wmPos={x:+$('wmPosX').value/100,y:+$('wmPosY').value/100};
@@ -830,7 +852,7 @@ function loadCfg(cfg){
   document.querySelectorAll('.mtab').forEach(t=>t.classList.toggle('on',t.dataset.mode===cfg.mode));
   $('singleSec').style.display=cfg.mode==='single'?'':'none';$('tileSec').style.display=cfg.mode==='tile'?'':'none';
   $('wmText').value=cfg.text;$('wmFont').value=cfg.font;$('wmFontSize').value=cfg.fontSize;$('fsLabel').textContent=cfg.fontSize+'px';
-  $('wmColor').value=cfg.color;$('wmColorHex').value=cfg.color;$('wmOpacity').value=cfg.opacity;$('opLabel').textContent=cfg.opacity.toFixed(2);
+  $('wmColorHex').value=cfg.color.replace('#','');$('cpPreview').style.background=cfg.color;$('wmOpacity').value=cfg.opacity;$('opLabel').textContent=cfg.opacity.toFixed(2);
   $('wmAngle').value=cfg.angle;$('aLabel').textContent=cfg.angle+'°';
   $('wmPosX').value=Math.round(cfg.wmPos.x*100);$('wmPosY').value=Math.round(cfg.wmPos.y*100);
   $('pxLabel').textContent=Math.round(cfg.wmPos.x*100)+'%';$('pyLabel').textContent=Math.round(cfg.wmPos.y*100)+'%';
@@ -842,8 +864,19 @@ function loadCfg(cfg){
   if(!syncZoom){zoom=cfg.zoom||1;canvasWrap.style.transform=`scale(${zoom})`;$('zLabel').textContent=Math.round(zoom*100)+'%'}
 }
 function saveCfg(){if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);render()}
-function onColorChange(){$('wmColorHex').value=$('wmColor').value;saveCfg()}
-function onHexInput(){const v=$('wmColorHex').value;if(/^#[0-9a-fA-F]{6}$/.test(v)){$('wmColor').value=v;saveCfg()}}
+function pickColor(hex){
+  $('wmColorHex').value=hex.replace('#','');
+  $('cpPreview').style.background=hex;
+  document.querySelectorAll('.cp-swatch').forEach(s=>s.classList.toggle('active',s.style.background===hex||rgbToHex(s.style.background)===hex));
+  saveCfg()
+}
+function rgbToHex(rgb){const m=rgb.match(/\d+/g);if(!m)return'';return'#'+m.slice(0,3).map(v=>(+v).toString(16).padStart(2,'0')).join('')}
+function onHexInput(){
+  let v=$('wmColorHex').value.replace(/[^0-9a-fA-F]/g,'').slice(0,6);
+  $('wmColorHex').value=v;
+  if(v.length===6){const hex='#'+v;$('cpPreview').style.background=hex;saveCfg()}
+  else if(v.length===3){const hex='#'+v;$('cpPreview').style.background=hex}
+}
 
 function applyToAll(type){
   if(!imgs.length)return;saveCfgTo(imgs[idx].cfg);const s=imgs[idx].cfg;
@@ -929,11 +962,11 @@ function autoColor(){
   else if(lum>180){cr=0;cg=0;cb=0}
   else{cr=255-R;cg=255-G;cb=255-B} // inverse color for mid-tone images
   const hex='#'+[cr,cg,cb].map(v=>v.toString(16).padStart(2,'0')).join('');
-  $('wmColor').value=hex;$('wmColorHex').value=hex;
-  // Also suggest opacity: darker watermarks look better at lower opacity
+  $('wmColorHex').value=hex.replace('#','');$('cpPreview').style.background=hex;
+  // Also suggest opacity
   const suggestedOp=lum<100?.35:lum>180?.25:.3;
   $('wmOpacity').value=suggestedOp;$('opLabel').textContent=suggestedOp.toFixed(2);
-  saveCfg();showToast(`智能配色 → ${hex}（${lum<100?'明亮':lum>180?'深色':'对比'}模式）`)
+  saveCfg();showToast(`智能配色 → ${hex}`)
 }
 
 mc.addEventListener('mousedown',e=>{if(!imgs.length||imgs[idx].cfg.mode!=='single')return;const p=cvPos(e);if(nearWm(p.x,p.y)){dragging=true;mc.style.cursor='grabbing';e.preventDefault()}else{setWmPos(p.x,p.y);render()}});
