@@ -861,16 +861,20 @@ function setAfMode(m){
 function onAutoFn(){
   autoFn=$('autoFilename').checked;
   $('afEach').style.display=autoFn?'':'none';$('afAll').style.display=autoFn?'':'none';
-  if(autoFn){
-    if(afMode==='all'){const cur=imgs[idx].name.replace(/\.[^.]+$/,'');imgs.forEach(it=>{it.cfg.text=cur})}
-    else{imgs.forEach(it=>{it.cfg.text=it.name.replace(/\.[^.]+$/,'')})}
-    if(imgs.length){loadCfg(imgs[idx].cfg);render()}
-  }
+  $('wmText').readOnly=autoFn;
+  if(autoFn&&imgs.length){applyAutoFnTexts();loadCfg(imgs[idx].cfg);render()}
   updAf()
+}
+function applyAutoFnTexts(){
+  if(afMode==='all'){const cur=imgs[idx].name.replace(/\.[^.]+$/,'');imgs.forEach(it=>{it.cfg.text=cur})}
+  else{imgs.forEach(it=>{it.cfg.text=it.name.replace(/\.[^.]+$/,'')})}
 }
 function updAf(){
   if(!autoFn||!imgs.length){$('afHint').textContent='';return}
-  $('afHint').textContent=afMode==='all'?'统一: '+imgs[idx].name.replace(/\.[^.]+$/,''):'各自: '+imgs[idx].name.replace(/\.[^.]+$/,'')
+  const name=imgs[idx].name.replace(/\.[^.]+$/,'');
+  $('afHint').textContent=afMode==='all'?'统一: '+name:'各自: '+name;
+  // Also sync the displayed text
+  $('wmText').value=imgs[idx].cfg.text
 }
 
 // ==================== Config sync ====================
