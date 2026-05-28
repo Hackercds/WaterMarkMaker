@@ -652,7 +652,7 @@ input[type="file"]{display:none}
           </div>
           <div class="fr">
             <div class="fg">
-              <label>颜色<span class="vl"><button onclick="autoColor()" class="ac-btn" title="智能分析最佳水印颜色">智能配色</button></span></label>
+              <label>颜色<span class="vl"><button onclick="autoColor('current')" class="ac-btn" title="仅为当前图片智能配色">智能配色</button><button onclick="autoColor('all')" class="ac-btn" title="为所有图片分别智能配色" style="margin-left:2px">全部</button></span></label>
               <div style="display:flex;gap:4px;align-items:center">
                 <input type="color" id="wmColor" value="#ffffff" onchange="onColorChange()" style="width:32px;height:28px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;padding:2px;flex-shrink:0">
                 <input type="text" id="wmColorHex" value="ffffff" maxlength="6" oninput="onHexInput()" style="flex:1;font-family:var(--font-mono);font-size:11px;height:28px">
@@ -1026,31 +1026,37 @@ function clampToFit(pos){
 }
 
 // Auto-detect best watermark color by sampling the image
-function autoColor(){
+function autoColor(mode){
+  if(mode==='all'){
+    if(!imgs.length)return;
+    const ov=$('procOverlay'),msg=$('procMsg');ov.style.display='flex';
+    let i=0;function chunk(){
+      const end=Math.min(i+5,imgs.length);
+      for(;i<end;i++){const c=analyzeImage(imgs[i].img);imgs[i].cfg.color=c.hex;imgs[i].cfg.opacity=c.op}
+      msg.textContent='智能配色 '+i+' / '+imgs.length;
+      if(i<imgs.length)requestAnimationFrame(chunk);else{ov.style.display='none';loadCfg(imgs[idx].cfg);render();showToast('完成 \u2014 '+imgs.length+'\u5F20\u56FE\u7247\u5DF2\u5206\u522B\u667A\u80FD\u914D\u8272')}
+    }
+    requestAnimationFrame(chunk);return
+  }
   const it=imgs[idx];if(!it)return;
-  const img=it.img;const S=80;
-  const c=document.createElement('canvas');
+  const c=analyzeImage(it.img);it.cfg.color=c.hex;it.cfg.opacity=c.op;
+  loadCfg(it.cfg);render();showToast('\u667A\u80FD\u914D\u8272 \u2192 '+c.hex)
+}
+function analyzeImage(img){
+  const S=80,cn=document.createElement('canvas');
   const r=Math.min(S/img.naturalWidth,S/img.naturalHeight);
-  c.width=Math.round(img.naturalWidth*r);c.height=Math.round(img.naturalHeight*r);
-  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-  const data=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+  cn.width=Math.round(img.naturalWidth*r);cn.height=Math.round(img.naturalHeight*r);
+  cn.getContext('2d').drawImage(img,0,0,cn.width,cn.height);
+  const data=cn.getContext('2d').getImageData(0,0,cn.width,cn.height).data;
   let R=0,G=0,B=0,n=0;
-  // Sample every 4th pixel
-  for(let i=0;i<data.length;i+=16){R+=data[i];G+=data[i+1];B+=data[i+2];n++}
+  for(let j=0;j<data.length;j+=16){R+=data[j];G+=data[j+1];B+=data[j+2];n++}
   R=Math.round(R/n);G=Math.round(G/n);B=Math.round(B/n);
-  // Perceived luminance
   const lum=0.299*R+0.587*G+0.114*B;
-  // Pick contrasting color: if dark image → bright text, if bright → dark
-  let cr,cg,cb;
-  if(lum<100){cr=255;cg=255;cb=255}
-  else if(lum>180){cr=0;cg=0;cb=0}
-  else{cr=255-R;cg=255-G;cb=255-B} // inverse color for mid-tone images
-  const hex='#'+[cr,cg,cb].map(v=>v.toString(16).padStart(2,'0')).join('');
-  $('wmColor').value=hex;$('wmColorHex').value=hex.replace('#','');
-  // Also suggest opacity
-  const suggestedOp=lum<100?.35:lum>180?.25:.3;
-  $('wmOpacity').value=suggestedOp;$('opLabel').textContent=suggestedOp.toFixed(2);
-  saveCfg();showToast(`智能配色 → ${hex}`)
+  let cr,cg,cb,op;
+  if(lum<100){cr=255;cg=255;cb=255;op=.35}
+  else if(lum>180){cr=0;cg=0;cb=0;op=.25}
+  else{cr=255-R;cg=255-G;cb=255-B;op=.3}
+  return{hex:'#'+[cr,cg,cb].map(v=>v.toString(16).padStart(2,'0')).join(''),op}
 }
 
 mc.addEventListener('mousedown',e=>{if(!imgs.length||imgs[idx].cfg.mode!=='single')return;const p=cvPos(e);if(nearWm(p.x,p.y)){dragging=true;mc.style.cursor='grabbing';e.preventDefault()}else{setWmPos(p.x,p.y);render()}});
