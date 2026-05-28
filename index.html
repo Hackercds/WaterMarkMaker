@@ -218,6 +218,7 @@ input[type="file"]{display:none}
   transition:all .15s;line-height:1;
 }
 .add-thumb:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
+.mobile-search-row{display:none}
 .thumb{
   position:relative;width:40px;height:40px;min-width:40px;
   border-radius:var(--radius-sm);overflow:hidden;cursor:pointer;flex-shrink:0;
@@ -499,17 +500,21 @@ input[type="file"]{display:none}
   /* Float quick bar */
   .float-quick{display:flex}
 
-  /* Bottom bar: tools hidden, BIG thumbs-only strip */
+  /* Bottom bar: tools hidden, search row + 4 thumbs */
   .bar-tools{display:none}
-  .thumb-strip{min-height:70px;padding:5px 36px;gap:6px}
-  .thumb,.add-thumb{width:60px;height:60px;min-width:60px}
-  .add-thumb{font-size:22px}
-  /* Mobile nav arrows in thumbnail strip */
+  .mobile-search-row{display:flex;align-items:center;padding:4px 8px;gap:4px;background:var(--bg-surface);border-bottom:1px solid var(--border)}
+  .mobile-search-row input{flex:1;padding:6px 8px;font-size:13px;font-family:var(--font);background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none}
+  .mobile-search-row input:focus{border-color:var(--accent)}
+  .ms-clear{font-size:16px;color:var(--text-muted);cursor:pointer;padding:4px}
+  .thumb-strip{min-height:68px;padding:4px 34px;gap:4px}
+  .thumb,.add-thumb{width:calc((100vw - 90px) / 4);height:auto;aspect-ratio:1;min-width:0;flex:0 0 calc((100vw - 90px) / 4)}
+  .add-thumb{font-size:18px}
+  /* Mobile nav arrows */
   .mobile-nav-left,.mobile-nav-right{
     display:flex;position:absolute;top:50%;transform:translateY(-50%);
-    width:30px;height:48px;align-items:center;justify-content:center;
+    width:26px;height:40px;align-items:center;justify-content:center;
     background:var(--bg-surface);color:var(--text-dim);
-    font-size:22px;cursor:pointer;z-index:3;
+    font-size:20px;cursor:pointer;z-index:3;
     border:1px solid var(--border);border-radius:var(--radius-sm);
   }
   .mobile-nav-left{left:2px}.mobile-nav-right{right:2px}
@@ -615,9 +620,13 @@ input[type="file"]{display:none}
           </button>
           <input type="number" class="nav-jump" id="navJump" min="1" placeholder="#" onkeydown="if(event.key==='Enter')jumpTo()" style="display:none">
         </div>
+        <!-- Mobile search row -->
+        <div class="mobile-search-row" id="mobileSearchRow">
+          <input type="text" id="imgSearchMobile" placeholder="搜索图片...">
+          <span class="ms-clear" onclick="clearMobileSearch()" style="display:none">&times;</span>
+        </div>
         <div class="thumb-strip" id="thumbStrip">
           <button class="add-thumb" onclick="document.getElementById('fileInput').click()">+</button>
-          <!-- Mobile nav injected here on small screens -->
           <span class="mobile-nav-left" onclick="navPrev()">&#x2039;</span>
           <span class="mobile-nav-right" onclick="navNext()">&#x203A;</span>
         </div>
@@ -1196,6 +1205,24 @@ sidebar.addEventListener('touchend',e=>{
 // ==================== Toast ====================
 function showToast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2000)}
 
+// Edge-aware swipe navigation in preview area (offset from edges for gesture nav)
+let swipeStartX=0,swipeStartY=0,swipeHandled=false;
+canvasArea.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1)return;
+  const x=e.touches[0].clientX,screenW=window.innerWidth;
+  // Only register swipes starting 40px from edges (clear of system gestures)
+  if(x<40||x>screenW-40)return;
+  swipeStartX=x;swipeStartY=e.touches[0].clientY;swipeHandled=false;
+},{passive:true});
+canvasArea.addEventListener('touchmove',e=>{
+  if(swipeHandled||e.touches.length!==1)return;
+  const dx=e.touches[0].clientX-swipeStartX,dy=e.touches[0].clientY-swipeStartY;
+  if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){
+    swipeHandled=true;
+    if(dx>0)navPrev();else navNext();
+  }
+},{passive:true});
+
 // Mouse wheel → horizontal scroll on thumbnail strip
 thumbStrip.addEventListener('wheel',e=>{
   if(Math.abs(e.deltaX)>Math.abs(e.deltaY))return; // let native horizontal scroll pass
@@ -1203,12 +1230,16 @@ thumbStrip.addEventListener('wheel',e=>{
   thumbStrip.scrollLeft+=e.deltaY;
 },{passive:false});
 
-// Search
-function clearSearch(){$('imgSearch').value='';filter='';$('searchWrap').classList.remove('has-value');updThumbs();updList()}
+// Search (desktop + mobile sync)
+function clearSearch(){$('imgSearch').value='';$('imgSearchMobile').value='';filter='';$('searchWrap').classList.remove('has-value');document.querySelector('.ms-clear').style.display='none';updThumbs();updList()}
+function clearMobileSearch(){$('imgSearchMobile').value='';filter='';document.querySelector('.ms-clear').style.display='none';updThumbs();updList()}
+function onMobileSearch(){filter=$('imgSearchMobile').value.toLowerCase();document.querySelector('.ms-clear').style.display=filter?'inline':'none';updThumbs();updList()}
 $('imgSearch').addEventListener('input',()=>{
   filter=$('imgSearch').value.toLowerCase();$('searchWrap').classList.toggle('has-value',!!filter);updThumbs();updList()
 });
 $('imgSearch').addEventListener('keydown',e=>{if(e.key==='Escape')clearSearch()});
+$('imgSearchMobile').addEventListener('input',()=>onMobileSearch());
+$('imgSearchMobile').addEventListener('keydown',e=>{if(e.key==='Escape')clearMobileSearch()});
 
 // ===== Generate color palette (lazy: on first open) =====
 let paletteBuilt=false;
