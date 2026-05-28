@@ -452,36 +452,86 @@ body{
 
 /* ===== Mobile ===== */
 @media(max-width:768px){
-  .header{height:42px;padding:0 12px}
-  .header-logo h1{font-size:13px}
+  .header{height:44px;padding:0 10px}
+  .header-logo h1{font-size:12px}
   .header .mobile-toggle{display:flex}
   .header .actions .btn.hide-mobile{display:none}
+  .header .actions .btn{padding:5px 10px;font-size:11px;height:28px}
   .container{flex-direction:column;position:relative}
-  .preview{flex:1;min-height:280px}
-  .preview-canvas-area{padding:12px}
-  .preview .drop-zone{padding:40px 20px;max-width:280px}
+  .preview{flex:1;min-height:260px}
+  .preview-canvas-area{padding:10px}
+  .preview .drop-zone{padding:36px 18px;max-width:260px}
   .preview .drop-zone p{font-size:12px}
   .upload-icon{width:36px;height:36px}
   .bottom-bar-tools{padding:4px 8px;gap:4px}
-  .thumbnail-strip{min-height:50px;padding:4px 8px;gap:4px}
+  .thumbnail-strip{min-height:48px;padding:4px 8px;gap:4px}
   .thumb,.thumbnail-strip .add-btn{width:36px;height:36px;min-width:36px}
-  .zoom-controls{bottom:8px;right:8px}
+  .zoom-controls{bottom:8px;right:8px;padding:2px}
+  .zoom-btn{width:28px;height:28px;font-size:14px}
+  .zoom-label{font-size:9px;min-width:36px}
+
+  /* Mobile: bottom sheet settings panel */
   .controls{
-    position:fixed;top:0;left:0;width:100%;min-width:0;
-    height:100%;height:100dvh;z-index:50;transform:translateY(100%);
-    border-left:none;border-radius:14px 14px 0 0;
-    box-shadow:0 -8px 32px rgba(0,0,0,.6);
-    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    position:fixed;top:auto;bottom:0;left:0;right:0;width:100%;min-width:0;
+    max-height:72vh;
+    z-index:50;
+    transform:translateY(100%);
+    border-left:none;
+    border-radius:16px 16px 0 0;
+    box-shadow:0 -4px 24px rgba(0,0,0,.55);
+    transition:transform .32s cubic-bezier(.22,.61,.36,1);
+    display:flex;flex-direction:column;
   }
   .controls.open{transform:translateY(0)}
-  .controls-handle{display:block}
+  .controls-scroll{padding:0 12px 16px;flex:1;overflow-y:auto}
+
+  /* Mobile: sheet header */
+  .sheet-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 16px 8px;flex-shrink:0;
+  }
+  .sheet-header-title{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.03em}
+  .sheet-close-btn{
+    width:30px;height:30px;border-radius:50%;border:1px solid var(--border);
+    background:transparent;color:var(--text-dim);font-size:16px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:all .12s;
+  }
+  .sheet-close-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .controls-handle{
+    display:block;width:32px;height:4px;
+    background:var(--text-muted);border-radius:2px;
+    margin:8px auto 4px;opacity:.5;
+  }
+
+  /* Backdrop: dims preview but keeps it visible */
   .controls-backdrop{
     display:block;position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,.45);z-index:49;opacity:0;pointer-events:none;transition:opacity .3s;
+    background:rgba(0,0,0,.35);z-index:49;
+    opacity:0;pointer-events:none;
+    transition:opacity .25s;
   }
   .controls-backdrop.open{opacity:1;pointer-events:auto}
-  .controls-scroll{padding:0 12px 20px}
   .image-list-overlay{max-height:260px}
+
+  /* Quick-action floating bar on preview */
+  .mobile-quick-bar{
+    position:absolute;top:8px;right:8px;z-index:8;
+    display:flex;gap:4px;
+  }
+  .mobile-quick-btn{
+    width:32px;height:32px;border-radius:50%;
+    background:var(--bg-surface);border:1px solid var(--border);
+    color:var(--text-dim);font-size:13px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 8px rgba(0,0,0,.4);
+    transition:all .12s;
+  }
+  .mobile-quick-btn:active{border-color:var(--accent);color:var(--accent)}
+}
+@media(min-width:769px){
+  .sheet-header{display:none}
+  .mobile-quick-bar{display:none}
 }
 @media(hover:none) and (pointer:coarse){
   .form-group input[type="range"]{height:6px}
@@ -533,6 +583,12 @@ body{
       <button class="zoom-btn" onclick="zoomFit()" title="适合窗口">⊡</button>
     </div>
 
+    <!-- Mobile quick-action floating bar -->
+    <div class="mobile-quick-bar" id="mobileQuickBar" style="display:none;">
+      <button class="mobile-quick-btn" onclick="downloadCurrent()" title="下载当前">↓</button>
+      <button class="mobile-quick-btn" onclick="toggleMobileSettings()" title="设置">☰</button>
+    </div>
+
     <!-- Bottom Bar: search + nav + list view -->
     <div class="bottom-bar" id="bottomBar" style="display:none;">
       <div class="bottom-bar-tools">
@@ -571,7 +627,11 @@ body{
 
   <!-- Controls -->
   <div class="controls" id="controlsPanel">
-    <div class="controls-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-header-title">水印设置</span>
+      <button class="sheet-close-btn" onclick="closeMobileSettings()">&times;</button>
+    </div>
+    <div class="controls-handle" id="controlsHandle"></div>
     <div class="controls-scroll">
       <!-- Watermark mode -->
       <div class="section">
@@ -792,7 +852,9 @@ function loadFiles(files){
 function onImagesChanged(){
   const has=images.length>0;
   dropZone.style.display=has?'none':'';canvasWrapper.style.display=has?'inline-block':'none';
-  bottomBar.style.display=has?'flex':'none';zoomControls.style.display=has?'flex':'none';
+  bottomBar.style.display=has?'flex':'none';
+  zoomControls.style.display=has?'flex':'none';
+  document.getElementById('mobileQuickBar').style.display=has?'flex':'none';
   ['btnDownloadCurrent','btnDownloadSelected','btnDownloadAll','btnClear'].forEach(id=>{
     document.getElementById(id).disabled=!has
   });
@@ -1167,6 +1229,31 @@ async function downloadAsZip(itemList){
 function toggleMobileSettings(){const o=controlsPanel.classList.toggle('open');controlsBackdrop.classList.toggle('open',o);document.body.style.overflow=o?'hidden':''}
 function closeMobileSettings(){controlsPanel.classList.remove('open');controlsBackdrop.classList.remove('open');document.body.style.overflow=''}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileSettings()});
+
+// Swipe-down to dismiss settings on mobile
+let touchStartY=0,touchStartTime=0;
+controlsPanel.addEventListener('touchstart',e=>{
+  if(e.target.closest('.controls-scroll')||e.target.closest('.sheet-header')){
+    touchStartY=e.touches[0].clientY;touchStartTime=Date.now()
+  }
+},{passive:true});
+controlsPanel.addEventListener('touchmove',e=>{
+  if(!controlsPanel.classList.contains('open'))return;
+  const dy=e.touches[0].clientY-touchStartY;
+  if(dy>20&&controlsPanel.scrollTop<=5){
+    e.preventDefault();
+    controlsPanel.style.transition='none';
+    controlsPanel.style.transform=`translateY(${dy}px)`
+  }
+},{passive:false});
+controlsPanel.addEventListener('touchend',e=>{
+  if(!controlsPanel.classList.contains('open'))return;
+  controlsPanel.style.transition='';
+  const dy=(e.changedTouches[0]?.clientY||0)-touchStartY;
+  const dt=Date.now()-touchStartTime;
+  if(dy>80||(dy>30&&dt<300)){closeMobileSettings();return}
+  controlsPanel.style.transform=''
+});
 
 // ==================== Toast ====================
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._timeout);t._timeout=setTimeout(()=>t.classList.remove('show'),2000)}
