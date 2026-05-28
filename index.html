@@ -496,22 +496,22 @@ input[type="file"]{display:none}
   /* Float quick bar */
   .float-quick{display:flex}
 
-  /* Bottom bar: streamlined for touch */
-  .bar-tools{padding:3px 6px;gap:3px;flex-wrap:nowrap}
-  .search-wrap{width:28px;flex:none;overflow:hidden;transition:width .2s}
-  .search-wrap:focus-within{width:130px}
-  .search-wrap input{font-size:10px;height:24px;padding:4px 2px 4px 20px}
-  .nav-pos{font-size:10px;padding:3px 6px}
-  .nbtn{width:28px;height:28px;font-size:14px}
+  /* Bottom bar: large touch targets */
+  .bar-tools{padding:5px 8px;gap:5px;flex-wrap:nowrap}
+  .search-wrap{width:32px;flex:none;overflow:hidden;transition:width .2s}
+  .search-wrap:focus-within{width:140px}
+  .search-wrap input{font-size:11px;height:28px;padding:4px 2px 4px 22px}
+  .nav-pos{font-size:11px;padding:4px 8px}
+  .nbtn{width:34px;height:34px;font-size:16px}
   .nav-scroll-btn{display:none}
-  .view-toggle{width:28px;height:28px}
-  .thumb-strip{min-height:52px;padding:4px 6px;gap:4px}
-  .thumb,.add-thumb{width:44px;height:44px;min-width:44px}
-  .add-thumb{font-size:18px}
-  .canvas-area{padding:8px}
+  .view-toggle{width:34px;height:34px}
+  .thumb-strip{min-height:60px;padding:5px 8px;gap:5px}
+  .thumb,.add-thumb{width:52px;height:52px;min-width:52px}
+  .add-thumb{font-size:20px}
+  .canvas-area{padding:6px}
   .float-zoom{bottom:6px;right:6px;padding:2px}
-  .zbtn{width:28px;height:28px;font-size:14px}
-  .drop-zone{padding:36px 18px;max-width:260px}
+  .zbtn{width:30px;height:30px;font-size:14px}
+  .drop-zone{padding:32px 16px;max-width:260px}
   .drop-zone p{font-size:12px}
   .upload-icon{width:34px;height:34px}
   .list-overlay{max-height:230px}
@@ -521,13 +521,13 @@ input[type="file"]{display:none}
 /* ===== VERY SMALL (<380px) ================= */
 /* =========================================== */
 @media(max-width:379px){
-  .bar-tools{gap:2px;padding:3px 4px}
-  .nav-btns{gap:1px}
-  .nbtn{width:26px;height:26px}
-  .thumb-strip{min-height:44px;padding:2px 4px;gap:3px}
-  .thumb,.add-thumb{width:38px;height:38px;min-width:38px}
-  .float-zoom{bottom:4px;right:4px;padding:1px}
-  .zbtn{width:24px;height:24px;font-size:12px}
+  .bar-tools{gap:3px;padding:4px 5px}
+  .nav-btns{gap:2px}
+  .nbtn{width:30px;height:30px;font-size:14px}
+  .thumb-strip{min-height:50px;padding:3px 5px;gap:4px}
+  .thumb,.add-thumb{width:44px;height:44px;min-width:44px}
+  .float-zoom{bottom:4px;right:4px}
+  .zbtn{width:26px;height:26px;font-size:12px}
   .zlabel{font-size:9px;min-width:34px}
   .float-quick{top:6px;right:6px;gap:3px}
   .fqbtn{width:30px;height:30px;font-size:12px}
@@ -537,12 +537,14 @@ input[type="file"]{display:none}
 
 /* Touch-friendly */
 @media(hover:none) and (pointer:coarse){
-  .fg input[type="range"]{height:7px}
-  .fg input[type="range"]::-webkit-slider-thumb{width:24px;height:24px}
-  .btn,.btn-dl,.btn-ol{min-height:40px}
-  .mtab{padding:9px}
+  .fg input[type="range"]{height:8px}
+  .fg input[type="range"]::-webkit-slider-thumb{width:26px;height:26px}
+  .btn,.btn-dl,.btn-ol{min-height:44px}
+  .mtab{padding:10px;font-size:13px}
   .color-quick{display:flex!important;margin-bottom:4px}
-  #wmColor{width:36px!important;height:32px!important}
+  #wmColor{width:40px!important;height:36px!important}
+  .mode-tabs{gap:2px}
+  .ac-btn{min-height:28px;padding:2px 8px;font-size:10px}
 }
 </style>
 </head>
